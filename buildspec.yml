@@ -1,0 +1,39 @@
+version: 0.2
+
+env:
+  secrets-manager:
+    DOCKERHUB_PASS: "/dockerhub/credentials:password"
+    DOCKERHUB_USERNAME: "/dockerhub/credentials:username"
+  variables:
+    IMAGE_TAG: "latest"
+    PROJECT_NAME: "laravel"
+    AWS_DEFAULT_REGION: "eu-west-2"
+    AWS_ACCOUNT_ID: "410539830770"
+phases:
+  pre_build:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com
+      - echo Logging in to Docker Hub ...
+      - echo $DOCKERHUB_PASS | docker login --username $DOCKERHUB_USERNAME --password-stdin
+  build:
+    commands:
+      - echo Build started on `date`
+      - echo Building the app Docker image...          
+      - docker build -t $PROJECT_NAME/app:$IMAGE_TAG . -f docker/app/Dockerfile
+      - docker tag $PROJECT_NAME/app:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$PROJECT_NAME/app:$IMAGE_TAG
+      - echo Building the db Docker image ...
+      - docker build -t $PROJECT_NAME/db:$IMAGE_TAG . -f docker/db/Dockerfile
+      - docker tag $PROJECT_NAME/db:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$PROJECT_NAME/db:$IMAGE_TAG
+      - echo Building the webserver Docker image ...
+      - docker build -t $PROJECT_NAME/webserver:$IMAGE_TAG . -f docker/webserver/Dockerfile
+      - docker tag $PROJECT_NAME/webserver:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$PROJECT_NAME/webserver:$IMAGE_TAG
+  post_build:
+    commands:
+      - echo Build completed on `date`
+      - echo Pushing the app Docker image...
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$PROJECT_NAME/app:$IMAGE_TAG
+      - echo Pushing the db Docker image ...
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$PROJECT_NAME/db:$IMAGE_TAG
+      - echo Pushing the webserver Docker image ...
+      - docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com/$PROJECT_NAME/webserver:$IMAGE_TAG
