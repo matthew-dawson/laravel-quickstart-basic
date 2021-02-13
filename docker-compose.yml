@@ -1,0 +1,85 @@
+version: '3'
+services:
+
+  #PHP Service
+  app:
+    build:
+      context: .
+      dockerfile: ./docker/app/Dockerfile
+    image: laravel/app
+    container_name: app
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "9000:9000"
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_KEY: b809vCwvtawRbsG0BmP1tWgnlXQypSKf
+      APP_URL: http://localhost
+      DB_HOST: db
+      DB_DATABASE: laravel
+      DB_USERNAME: laraveluser
+      DB_PASSWORD: laravelpass
+      CACHE_DRIVER: file
+      SESSION_DRIVER: file
+      QUEUE_DRIVER: sync
+    working_dir: /var/www
+    volumes:
+      - ./src:/var/www
+    networks:
+      - app-network
+    depends_on:
+      - db
+    links:
+      - db
+
+  #Nginx Service
+  webserver:
+    build:
+      context: .
+      dockerfile: ./docker/webserver/Dockerfile
+    image: laravel/webserver
+    container_name: webserver
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./src/public/:/var/www/public/
+    networks:
+      - app-network
+    depends_on:
+      - app
+    links:
+      - app
+
+  #MySQL Service
+  db:
+    build:
+      context: .
+      dockerfile: ./docker/db/Dockerfile
+    image: laravel/db
+    container_name: db
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_DATABASE: laravel
+      MYSQL_ROOT_PASSWORD: feelingLucky
+    volumes:
+      - dbdata:/var/lib/mysql/
+    networks:
+      - app-network
+
+#Docker Networks
+networks:
+  app-network:
+    driver: bridge
+
+#Volumes
+volumes:
+  dbdata:
+    driver: local
