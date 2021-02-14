@@ -41,6 +41,9 @@ echo "$ACCOUNT" > account.data
 # Register task definition
 ./create_ecsTaskRegistrations.sh
 
+# Creat Cloud Watch log groups
+./create_cloudwatchLogGroups.sh
+
 # TODO Create ECS service
 
 # TODO Create Code Pipeline
@@ -49,6 +52,9 @@ echo "$ACCOUNT" > account.data
 # TODO Delete Code Pipeline
 
 # TODO Delete ECS Services
+
+# Remove Cloud watch log groups
+./delete_cloudwatchLogGroups.sh
 
 # TODO Delete deregister task definitions
 
