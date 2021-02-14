@@ -97,10 +97,12 @@ echo "SUBNETID1 $SUBNETID1" >> $DATAFILE
 echo "SECURITYGROUPID $(aws ec2 describe-security-groups --filters Name=vpc-id,Values=$VPCID --query 'SecurityGroups[*].[GroupId]' --output text)" >> $DATAFILE
 echo "NAMESPACEID $NAMESPACEID" >> $DATAFILE
 
-aws ec2 authorize-security-group-ingress 
-    --group-id $SECURITYGROUPID \
+aws ec2 authorize-security-group-ingress \
+    --group-id "$SECURITYGROUPID" \
     --protocol tcp \
     --port http \
     --cidr 0.0.0.0/0
 
 ## TODO Add an inbound rule with type NFS on port 2049 to the security group
+## I believe this is already covered by the all rule, but will leave this here
+## until further testing is completed
