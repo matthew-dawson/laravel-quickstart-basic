@@ -7,7 +7,7 @@ ROLEARN=$(aws iam create-role \
     --region eu-west-2 \
     --role-name $ROLENAME \
     --assume-role-policy-document file://task-execution-assume-role.json \
-    | grep 'RoleId' \
+    | grep 'Arn' \
     | awk '{ print $2 }' \
     | tr -d ',"' )
 
