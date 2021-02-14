@@ -34,8 +34,7 @@ MOUNTTARGETID1=$(aws efs create-mount-target \
     | tr -d ',"')
 
 ## Update the task definition for the db to consume this EFS
-sed -i "#filesystemId# s#: .*# :\"$FILESYSTEMID\",#" tasks/db-task.json
-
+sed -i "/fileSystemId/ s/: .*/: \"$FILESYSTEMID\",/" tasks/db-task.json
 
 echo "FILESYSTEMID $FILESYSTEMID" > efs.data
 echo "MOUNTTARGETID0 $MOUNTTARGETID0" >> efs.data
