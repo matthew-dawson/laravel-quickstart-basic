@@ -27,11 +27,11 @@ echo "$ACCOUNT" > account.data
 # TODO Build the images
 
 #### TODO Create load balancer
+#### TODO Creat load balancer target group
 
 # Create ECS Cluster
 ./create_ecsCluster.sh
 
-## TODO NICE TO HAVE
 # Create EFS
 ./create_efs.sh
 
@@ -62,6 +62,7 @@ echo "$ACCOUNT" > account.data
 ./delete_ecsCluster.sh
 
 ### TODO Delete Load Balancer
+### TODO Delete the load balancer target groups
 
 # TODO Delete CodeDeploy build
 
