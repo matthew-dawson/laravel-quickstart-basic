@@ -15,7 +15,7 @@ aws efs delete-mount-target \
     --region eu-west-2
 
 # Give the filesystem time to dismount the mount targets
-sleep 30
+sleep 60
 
 aws efs delete-file-system \
     --file-system-id "$FILESYSTEMID" \
