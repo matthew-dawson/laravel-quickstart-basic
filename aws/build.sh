@@ -6,10 +6,16 @@ ACCOUNT=$(aws sts get-caller-identity \
     | tr -d ',"')
 echo "$ACCOUNT" > account.data
 
+## Update accountId in various places
+#for FILENAME in {tasks/webserver-task.json,\
+#    tasks/db-task.json,\
+#    tasks/app-task.json}; do
+#    sed -i "/image/s/ \".*.dkr/\ "$ACCOUNT.dkr/" "$FILENAME"
+#done
+
 ## TODO Populate the docker credentials within secrets manager
 
 # Create VPC
-## TODO Add HTTP ingress to the security group
 ./create_vpc.sh
 
 # Create ECR repositories

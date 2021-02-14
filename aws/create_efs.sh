@@ -33,6 +33,7 @@ MOUNTTARGETID1=$(aws efs create-mount-target \
     | grep 'MountTargetId' | awk '{ print $2 }' \
     | tr -d ',"')
 
+## TODO update the task definition for the db to consume this EFS
 
 echo "FILESYSTEMID $FILESYSTEMID" > efs.data
 echo "MOUNTTARGETID0 $MOUNTTARGETID0" >> efs.data

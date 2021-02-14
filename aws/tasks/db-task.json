@@ -33,9 +33,23 @@
                     "name": "MYSQL_ROOT_PASSWORD",
                     "value": "feelingLucky"
                 }
+            ],
+            "mountPoints": [
+                {
+                    "sourceVolume": "dbdata",
+                    "containerPath": "/var/lib/mysql"
+                }
             ]
         }
-    ], 
+    ],
+    "volumes": [
+        {
+            "name": "dbdata",
+            "efsVolumeConfiguration": {
+                "filesystemId": "##TODO##"
+            }
+        }
+    ],
     "requiresCompatibilities": [
         "FARGATE"
     ], 
