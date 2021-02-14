@@ -46,7 +46,7 @@
         {
             "name": "dbdata",
             "efsVolumeConfiguration": {
-                "fileSystemId": "fs-d8350b29",
+                "fileSystemId": "fs-0d0937fc"
             }
         }
     ],

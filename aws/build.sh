@@ -1,81 +1,296 @@
 #! /bin/bash
 
+PROJECT="laravel"
+REGION="eu-west-2"
+#VPCID=''
+#IGWID=''
+#ROUTETABLEID=''
+#SUBNETID0=''
+#SUBNETID1=''
+#NAMESPACEID=''
+#OPERATIONID=''
+ 
+set -eux 
+
 # Determine AWS account
 ACCOUNT=$(aws sts get-caller-identity \
     | grep 'Account' | awk '{ print $2 }' \
     | tr -d ',"')
 echo "$ACCOUNT" > account.data
 
-## Update accountId in various places
-#for FILENAME in {tasks/webserver-task.json,\
-#    tasks/db-task.json,\
-#    tasks/app-task.json}; do
-#    sed -i "/image/s/ \".*.dkr/\ "$ACCOUNT.dkr/" "$FILENAME"
-#done
+create_vpc () {
 
-## TODO Populate the docker credentials within secrets manager
+    local DATAFILE="vpc.data"
+   
+    if [ -e "$DATAFILE" ]; then
+        echo 'VPC DATA EXISTS!!'
+        exit 255
+    fi
 
-# Create VPC
-./create_vpc.sh
+    touch "$DATAFILE"
 
-# Create ECR repositories
-./create_ecrRepos.sh
+    # Create a VPC with a 10.0.0.0/16 CIDR block
+    VPCID=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 \
+        | grep 'VpcId' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
 
-# TODO Create CodeDeploy build
-./create_codeDeploy.sh
+    echo "VPCID $VPCID" >> "$DATAFILE"
 
-# TODO Build the images
+    # Enable DNS Support
+    aws ec2 modify-vpc-attribute --enable-dns-support \
+        --vpc-id "$VPCID"
 
-#### TODO Create load balancer
-#### TODO Creat load balancer target group
+    # Enable DNS Hostnames
+    aws ec2 modify-vpc-attribute --enable-dns-hostnames \
+        --vpc-id "$VPCID"
 
-# Create ECS Cluster
-./create_ecsCluster.sh
+    # Create .local private hosted zone using service discovery
+    OPERATIONID=$(aws servicediscovery create-private-dns-namespace \
+        --name local \
+        --vpc "$VPCID" \
+        | grep 'OperationId' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
 
-# Create EFS
-./create_efs.sh
+    # Give the servicdiscovery service time to process
+    sleep 20
 
-# Create ecsTaskExecutionRole
-./create_ecsTaskExecutionRole.sh
+    NAMESPACEID=$(aws servicediscovery get-operation \
+        --operation-id "$OPERATIONID" \
+        | grep 'NAMESPACE":' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
 
-# Register task definition
-./create_ecsTaskRegistrations.sh
+    echo "NAMESPACEID $NAMESPACEID" >> "$DATAFILE"
 
-# Creat Cloud Watch log groups
-./create_cloudwatchLogGroups.sh
+    # Create a subnet with 10.0.1.0/24 CIDR block
+    aws ec2 create-subnet \
+        --availability-zone "$REGION"a \
+        --vpc-id "$VPCID" \
+        --cidr-block 10.0.1.0/24
 
-# TODO Create ECS service
+    # Create a subnet with 10.0.0.0/24 CIDR block
+    aws ec2 create-subnet \
+        --availability-zone "$REGION"b \
+        --vpc-id "$VPCID" \
+        --cidr-block 10.0.0.0/24
 
-# TODO Create Code Pipeline
+    IGWID=$(aws ec2 create-internet-gateway \
+        | grep 'InternetGatewayId' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
 
+    echo "IGWID $IGWID" >> "$DATAFILE"
 
-# TODO Delete Code Pipeline
+    # Attach the InternetGateway to the VPC
+    aws ec2 attach-internet-gateway \
+        --vpc-id "$VPCID" \
+        --internet-gateway-id "$IGWID"
 
-# TODO Delete ECS Services
+    # Create a route table for the VPC
+    ROUTETABLEID=$(aws ec2 create-route-table --vpc-id "$VPCID" \
+        | grep 'RouteTableId' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
 
-# Remove Cloud watch log groups
-./delete_cloudwatchLogGroups.sh
+    echo "ROUTETABLEID $ROUTETABLEID" >> "$DATAFILE"
 
-# TODO Delete deregister task definitions
+    # Create default route entry
+    aws ec2 create-route \
+        --route-table-id "$ROUTETABLEID" \
+        --destination-cidr-block 0.0.0.0/0 \
+        --gateway-id "$IGWID"
 
-# Delete EFS
-./delete_efs.sh
+    # Determine subnet IDs
+    SUBNETID0=$(aws ec2 describe-subnets \
+        --filters "Name=vpc-id,Values=$VPCID" \
+        --query 'Subnets[*].{ID:SubnetId,CIDR:CidrBlock}' \
+        | grep 'ID"' \
+        | awk '{ print $2 }' \
+        | tr -d ',"' \
+        | head -n1)
 
-# Delete ecsTaskExecutionRole
-./delete_ecsTaskExecutionRole.sh
+    echo "SUBNETID0 $SUBNETID0" >> "$DATAFILE"
 
-# Delete ECS Cluster
-./delete_ecsCluster.sh
+    SUBNETID1=$(aws ec2 describe-subnets \
+        --filters "Name=vpc-id,Values=$VPCID" \
+        --query 'Subnets[*].{ID:SubnetId,CIDR:CidrBlock}' \
+        | grep 'ID"' \
+        | awk '{ print $2 }' \
+        | tr -d ',"' \
+        | tail -n1)
 
-### TODO Delete Load Balancer
-### TODO Delete the load balancer target groups
+    echo "SUBNETID1 $SUBNETID1" >> "$DATAFILE"
 
-# TODO Delete CodeDeploy build
+    # Associate the subnets with the route table
+    aws ec2 associate-route-table \
+        --subnet-id "$SUBNETID0" \
+        --route-table-id "$ROUTETABLEID"
 
-# Delete ECR repositories
-./delete_ecrRepos.sh
+    aws ec2 associate-route-table \
+        --subnet-id "$SUBNETID1" \
+        --route-table-id "$ROUTETABLEID"
 
-# Delete VPC
-./delete_vpc.sh
+    # Store the IDs locally
+    SECURITYGROUPID=$(aws ec2 describe-security-groups \
+        --filters Name=vpc-id,Values="$VPCID" \
+        --query 'SecurityGroups[*].[GroupId]' \
+        --output text)
 
-## TODO Remove docker credentials from secrets manager
+    echo "SECURITYGROUPID $SECURITYGROUPID" >> "$DATAFILE"
+
+    # Allow ingress on port 80 from 0.0.0.0/0
+    aws ec2 authorize-security-group-ingress \
+        --group-id "$SECURITYGROUPID" \
+        --protocol tcp \
+        --port 80 \
+        --cidr 0.0.0.0/0
+
+}
+
+create_ecrRepos () {
+
+    for i in {app,db,webserver}; do
+        REPOSITORYUI=$(aws ecr create-repository \
+        --repository-name "$PROJECT/$i" \
+        --image-scanning-configuration scanOnPush=false \
+        --region "$REGION" \
+        | grep 'repositoryUri' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
+
+        sed -i "#image# s#: .*# :\"$REPOSITORYUI\",#" tasks/$i-task.json
+    done
+
+}
+
+## Create CodeDeploy build
+
+## Build the images
+
+## Create load balancer
+
+## Creat load balancer target group
+
+create_ecsCluster () {
+
+    CLUSTERNAME="$PROJECT"-cluster
+    local DATAFILE="cluster.data"
+
+    if [ -e "$DATAFILE" ]; then
+        echo 'CLUSTER DATA EXISTS!!'
+        exit 255
+    fi
+
+    touch "$DATAFILE"
+
+    CLUSTERARN=$(aws ecs create-cluster --cluster-name "$CLUSTERNAME" \
+        | grep 'clusterArn' | awk '{ print $2 }' | tr -d ',"')
+
+        echo "CLUSTERNAME $CLUSTERNAME" >> "$DATAFILE"
+        echo "CLUSTERARN $CLUSTERARN" >> "$DATAFILE"
+
+}
+
+create_efs () {
+
+    local DATAFILE="efs.data"
+    FILESYSTEMID=$(aws efs create-file-system \
+        --no-encrypted \
+        --region "$REGION" \
+        | grep 'FileSystemId' | awk '{ print $2 }' \
+        | tr -d ',"')
+
+    # Give it time to become available
+    sleep 30
+
+    # Create a Mount Target
+    MOUNTTARGETID0=$(aws efs create-mount-target \
+        --file-system-id "$FILESYSTEMID" \
+        --subnet-id "$SUBNETID0" \
+        --security-group "$SECURITYGROUPID" \
+        --region "$REGION" \
+        | grep 'MountTargetId' | awk '{ print $2 }' \
+        | tr -d ',"')
+
+    MOUNTTARGETID1=$(aws efs create-mount-target \
+        --file-system-id "$FILESYSTEMID" \
+        --subnet-id "$SUBNETID1" \
+        --security-group "$SECURITYGROUPID" \
+        --region "$REGION" \
+        | grep 'MountTargetId' | awk '{ print $2 }' \
+        | tr -d ',"')
+
+    ## Update the task definition for the db to consume this EFS
+    sed -i "/fileSystemId/ s/: .*/: \"$FILESYSTEMID\"/" tasks/db-task.json
+
+    echo "FILESYSTEMID $FILESYSTEMID" > "$DATAFILE"
+    echo "MOUNTTARGETID0 $MOUNTTARGETID0" >> "$DATAFILE"
+    echo "MOUNTTARGETID1 $MOUNTTARGETID1" >> "$DATAFILE"
+
+}
+
+create_ecsTaskExecutionRole () {
+
+    local ROLENAME="ecsTaskExecutionRole"
+    local ROLEARN=''
+        ROLEARN=$(aws iam create-role \
+        --region "$REGION" \
+        --role-name "$ROLENAME" \
+        --assume-role-policy-document file://task-execution-assume-role.json \
+        | grep 'Arn' \
+        | awk '{ print $2 }' \
+        | tr -d ',"' )
+
+    for i in {app,db,webserver}; do
+        sed -i "#executionRoleArn# s#: .*# :\"$ROLEARN\",#" tasks/$i-task.json
+     done
+
+    # Attach the role policy to the role
+    aws iam attach-role-policy \
+    --region "$REGION" \
+    --role-name "$ROLENAME" \
+    --policy-arn arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+}
+
+create_ecsTaskRegistrations () {
+
+    aws ecs register-task-definition --cli-input-json file://tasks/app-task.json
+    aws ecs register-task-definition --cli-input-json file://tasks/webserver-task.json
+    aws ecs register-task-definition --cli-input-json file://tasks/db-task.json
+
+}
+
+create_cloudwatchLogGroups() {
+
+    for i in {app,db,webserver}; do
+        aws logs create-log-group \
+        --log-group-name /ecs/"$PROJECT"-"$i"
+    done
+
+}
+
+## Create ECS service
+
+## Create Code Pipeline
+
+main () {
+    ## TODO Populate the docker credentials within secrets manager
+    create_vpc
+    create_ecrRepos
+    # TODO Create Code Deploy build
+    # TODO Build the images
+    # TODO Create Load Balancer
+    # TODO Create load balancer target group
+    create_ecsCluster
+    create_efs
+    create_ecsTaskExecutionRole
+    create_ecsTaskRegistrations
+    create_cloudwatchLogGroups
+    # TODO Create ECS Services
+    # TODO Create Code Pipeline
+}
+
+main
