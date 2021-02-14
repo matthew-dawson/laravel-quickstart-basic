@@ -130,7 +130,7 @@ echo "SECURITYGROUPID $SECURITYGROUPID" >> $DATAFILE
 aws ec2 authorize-security-group-ingress \
     --group-id "$SECURITYGROUPID" \
     --protocol tcp \
-    --port http \
+    --port 80 \
     --cidr 0.0.0.0/0
 
 ## TODO Add an inbound rule with type NFS on port 2049 to the security group
