@@ -1,0 +1,44 @@
+{
+    "family": "laravel-db", 
+    "networkMode": "awsvpc",
+    "executionRoleArn": "arn:aws:iam::410539830770:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "laravel-db", 
+            "image": "410539830770.dkr.ecr.eu-west-2.amazonaws.com/laravel/db:latest",
+            "portMappings": [
+                {
+                    "containerPort": 3306, 
+                    "hostPort": 3306, 
+                    "protocol": "tcp"
+                }
+            ], 
+            "essential": true,
+             "logConfiguration": 
+                {
+                "logDriver": "awslogs",
+                "options":
+                    {
+                    "awslogs-group": "/ecs/laravel-db",
+                    "awslogs-region": "eu-west-2",
+                    "awslogs-stream-prefix": "ecs"
+                    }
+                },
+           "environment": [
+                {
+                    "name": "MYSQL_DATABASE",
+                    "value": "laravel"
+                },
+                {
+                    "name": "MYSQL_ROOT_PASSWORD",
+                    "value": "feelingLucky"
+                }
+            ]
+        }
+    ], 
+    "requiresCompatibilities": [
+        "FARGATE"
+    ], 
+    "cpu": "256", 
+    "memory": "512"
+}

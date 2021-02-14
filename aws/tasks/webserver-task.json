@@ -1,0 +1,40 @@
+{
+    "family": "laravel-webserver", 
+    "networkMode": "awsvpc",
+    "executionRoleArn": "arn:aws:iam::410539830770:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "laravel-webserver", 
+            "image": "410539830770.dkr.ecr.eu-west-2.amazonaws.com/laravel/webserver:latest", 
+            "portMappings": [
+                {
+                    "containerPort": 80, 
+                    "hostPort": 80, 
+                    "protocol": "tcp"
+                }
+            ], 
+            "essential": true,
+            "logConfiguration":
+                {
+                "logDriver": "awslogs",
+                "options":
+                    {
+                    "awslogs-group": "/ecs/laravel-webserver",
+                    "awslogs-region": "eu-west-2",
+                    "awslogs-stream-prefix": "ecs"
+                    }
+                },
+            "environment": [
+                {
+                    "name": "ENVIRONMENT",
+                    "value": "production"
+                }
+            ]
+         }
+    ], 
+    "requiresCompatibilities": [
+        "FARGATE"
+    ], 
+    "cpu": "256", 
+    "memory": "512"
+}

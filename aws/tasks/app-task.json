@@ -1,0 +1,60 @@
+{
+    "family": "laravel-app", 
+    "networkMode": "awsvpc",
+    "executionRoleArn": "arn:aws:iam::410539830770:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "laravel-app", 
+            "image": "410539830770.dkr.ecr.eu-west-2.amazonaws.com/laravel/app:latest", 
+            "portMappings": [
+                {
+                    "containerPort": 9000, 
+                    "hostPort": 9000, 
+                    "protocol": "tcp"
+                }
+            ], 
+            "essential": true,
+            "logConfiguration":
+                {
+                "logDriver": "awslogs",
+                "options":
+                    {
+                    "awslogs-group": "/ecs/laravel-app",
+                    "awslogs-region": "eu-west-2",
+                    "awslogs-stream-prefix": "ecs"
+                    }
+                },
+            "environment": [
+                {
+                    "name": "APP_KEY",
+                    "value": "b809vCwvtawRbsG0BmP1tWgnlXQypSKf"
+                },
+                {
+                    "name": "APP_URL",
+                    "value": "http://localhost"
+                },
+                {
+                    "name": "DB_HOST",
+                    "value": "db.local"
+                },
+                {
+                    "name": "DB_DATABASE",
+                    "value": "laravel"
+                },
+                {
+                    "name": "DB_USERNAME",
+                    "value": "laraveluser"
+                },
+                {
+                    "name": "DB_PASSWORD",
+                    "value": "laravelpass"
+                }
+            ]
+         }
+    ], 
+    "requiresCompatibilities": [
+        "FARGATE"
+    ], 
+    "cpu": "256", 
+    "memory": "512"
+}
