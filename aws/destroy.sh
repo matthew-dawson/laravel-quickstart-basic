@@ -166,7 +166,12 @@ delete_ecsCluster () {
 
 delete_codePipelineServiceRole () {
 
-    # Detach the ECR policy
+    ## Detach policies first
+    aws iam delete-role-policy \
+        --role-name CodePipelineServiceRole \
+        --policy-name CodePipelineServiceRolePolicy
+
+# Detach the ECR policy
     aws iam detach-role-policy \
         --role-name CodePipelineServiceRole \
         --policy-arn arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess
@@ -183,8 +188,14 @@ delete_artifactS3Bucket () {
 
 }
 
+delete_codePipeline () {
+
+    aws codepipeline delete-pipeline --name laravel
+
+}
+
 main () {
-    # TODO Delete Code Pipeline
+    delete_codePipeline
     delete_artifactS3Bucket
     delete_codePipelineServiceRole
     # TODO Delete Load Balancer

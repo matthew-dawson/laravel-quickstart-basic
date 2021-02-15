@@ -196,9 +196,9 @@ create_codeBuildProject () {
         --cli-input-json file://codebuild/"$PROJECT"-project.json
 
     ## Run the build to populate the ECR repos
-    aws codebuild start-build \
-        --project-name "$PROJECT" \
-        --buildspec-override buildspec-full.yml
+#    aws codebuild start-build \
+#        --project-name "$PROJECT" \
+#        --buildspec-override buildspec-full.yml
 
 }
 
@@ -314,12 +314,25 @@ create_codePipelineServiceRole () {
         --role-name CodePipelineServiceRole \
         --policy-arn arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess
 
+    # Add codestar permissions to code pipeline service role
+    aws iam put-role-policy \
+        --role-name CodePipelineServiceRole \
+        --policy-name CodePipelineServiceRolePolicy \
+        --policy-document file://codepipeline/create-role-policy.json
+
 
 }
 
 create_artifactS3Bucket () {
 
     aws s3 mb s3://codepipeline-eu-west-2-laravel
+
+}
+
+create_codePipeline () {
+
+    aws codepipeline create-pipeline \
+        --cli-input-json file://codepipeline/create-pipeline.json
 
 }
 
@@ -336,13 +349,12 @@ main () {
     create_codeBuildServiceRole
     create_codeBuildProject
     create_codePipelineServiceRole
+    # TODO Create ECS Services
     # TODO Create Load Balancer
     # TODO Create load balancer target group
-    # TODO Create ECS Services
-    # TODO Create Code Pipeline Project
+    create_codePipeline
     # TODO Create Code Deploy Service Role
     # TODO Create Code Deploy build
-    # TODO Create Code Pipeline
 
     echo "--==SUCCESS==--"
 }
