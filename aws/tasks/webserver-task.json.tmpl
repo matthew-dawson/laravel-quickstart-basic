@@ -1,11 +1,11 @@
 {
-    "family": "laravel-webserver", 
+    "family": "<PROJECT>-webserver", 
     "networkMode": "awsvpc",
-    "executionRoleArn": "arn:aws:iam::410539830770:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::<ACCOUNT>:role/ecsTaskExecutionRole",
     "containerDefinitions": [
         {
-            "name": "laravel-webserver", 
-            "image": "410539830770.dkr.ecr.eu-west-2.amazonaws.com/laravel/webserver:latest", 
+            "name": "<PROJECT>-webserver", 
+            "image": "<ACCOUNT>.dkr.ecr.eu-west-2.amazonaws.com/<PROJECT>/webserver:latest", 
             "portMappings": [
                 {
                     "containerPort": 80, 
@@ -19,7 +19,7 @@
                 "logDriver": "awslogs",
                 "options":
                     {
-                    "awslogs-group": "/ecs/laravel-webserver",
+                    "awslogs-group": "/ecs/<PROJECT>-webserver",
                     "awslogs-region": "eu-west-2",
                     "awslogs-stream-prefix": "ecs"
                     }

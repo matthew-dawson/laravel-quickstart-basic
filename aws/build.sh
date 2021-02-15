@@ -17,6 +17,24 @@ ACCOUNT=$(aws sts get-caller-identity \
     | grep 'Account' | awk '{ print $2 }' \
     | tr -d ',"')
 echo "$ACCOUNT" > account.data
+echo "$PROJECT" > project.data
+
+## Order matters here
+for i in {app,db,webserver}; do
+    sed "s/<ACCOUNT>/$ACCOUNT/g" tasks/"$i"-task.json.tmpl > tasks/"$i"-task.json
+    sed -i "s/<PROJECT>/$PROJECT/g" tasks/"$i"-task.json
+done
+
+## Order matters here
+sed "s/<ACCOUNT>/$ACCOUNT/g" codeBuild/"$PROJECT"-project.json.tmpl > codeBuild/"$PROJECT"-project.json
+sed -i "s/<PROJECT>/$PROJECT/g" codeBuild/"$PROJECT"-project.json
+
+sed "s/<ACCOUNT>/$ACCOUNT/g" codePipeline/create-role-policy.json.tmpl > codePipeline/create-role-policy.json
+sed -i "s/<PROJECT>/$PROJECT/g" codePipeline/create-role-policy.json
+
+sed "s/<ACCOUNT>/$ACCOUNT/g" codePipeline/create-pipeline.json.tmpl > codePipeline/create-pipeline.json
+sed -i "s/<PROJECT>/$PROJECT/g" codePipeline/create-pipeline.json
+
 
 create_vpc () {
 
@@ -253,7 +271,7 @@ create_efs () {
         | tr -d ',"')
 
     ## Update the task definition for the db to consume this EFS
-    sed -i "/fileSystemId/ s/: .*/: \"$FILESYSTEMID\"/" tasks/db-task.json
+    sed -i "s/<FILESYSTEMID>/$FILESYSTEMID/g" tasks/db-task.json
 
     echo "FILESYSTEMID $FILESYSTEMID" > "$DATAFILE"
     echo "MOUNTTARGETID0 $MOUNTTARGETID0" >> "$DATAFILE"
@@ -326,12 +344,13 @@ create_codePipelineServiceRole () {
 
 create_artifactS3Bucket () {
 
-    aws s3 mb s3://codepipeline-eu-west-2-laravel
+    aws s3 mb s3://codepipeline-eu-west-2-"$PROJECT"
 
 }
 
 create_codePipeline () {
 
+    sleep 20
     aws codepipeline create-pipeline \
         --cli-input-json file://codePipeline/create-pipeline.json
 

@@ -1,8 +1,8 @@
 {
-    "name": "laravel",
+    "name": "<PROJECT>",
     "source": {
         "type": "GITHUB",
-        "location": "https://github.com/matthew-dawson/laravel-quickstart-basic.git",
+        "location": "https://github.com/matthew-dawson/<PROJECT>-quickstart-basic.git",
         "gitCloneDepth": 1
     },
     "sourceVersion": "master",
@@ -15,11 +15,11 @@
         "computeType": "BUILD_GENERAL1_SMALL",
         "privilegedMode": true
     },
-    "serviceRole": "arn:aws:iam::410539830770:role/CodeBuildServiceRole",
+    "serviceRole": "arn:aws:iam::<ACCOUNT>:role/CodeBuildServiceRole",
     "logsConfig": {
         "cloudWatchLogs": {
             "status": "ENABLED",
-            "groupName": "/codebuild/laravel",
+            "groupName": "/codebuild/<PROJECT>",
             "streamName": "codeBuild"
         }
     }

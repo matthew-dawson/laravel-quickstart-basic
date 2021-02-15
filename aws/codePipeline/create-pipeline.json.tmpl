@@ -1,6 +1,6 @@
 {
   "pipeline": {
-    "roleArn": "arn:aws:iam::410539830770:role/CodePipelineServiceRole",
+    "roleArn": "arn:aws:iam::<ACCOUNT>:role/CodePipelineServiceRole",
     "stages": [
       {
         "name": "Source",
@@ -20,8 +20,8 @@
               }
             ],
             "configuration": {
-              "ConnectionArn": "arn:aws:codestar-connections:eu-west-2:410539830770:connection/59b531a0-0a9f-41db-9454-8efe972659b6",
-              "FullRepositoryId": "matthew-dawson/laravel-quickstart-basic",
+              "ConnectionArn": "arn:aws:codestar-connections:eu-west-2:<ACCOUNT>:connection/59b531a0-0a9f-41db-9454-8efe972659b6",
+              "FullRepositoryId": "matthew-dawson/<PROJECT>-quickstart-basic",
               "BranchName": "master",
               "OutputArtifactFormat": "CODE_ZIP"
             },
@@ -51,7 +51,7 @@
               }
             ],
             "configuration": {
-              "ProjectName": "laravel"
+              "ProjectName": "<PROJECT>"
             },
             "runOrder": 1
           }
@@ -60,9 +60,9 @@
     ],
     "artifactStore": {
       "type": "S3",
-      "location": "codepipeline-eu-west-2-laravel"
+      "location": "codepipeline-eu-west-2-<PROJECT>"
     },
-    "name": "laravel",
+    "name": "<PROJECT>",
     "version": 1
   }
 }

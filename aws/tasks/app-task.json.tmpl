@@ -1,11 +1,11 @@
 {
-    "family": "laravel-app", 
+    "family": "<PROJECT>-app", 
     "networkMode": "awsvpc",
-    "executionRoleArn": "arn:aws:iam::410539830770:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::<ACCOUNT>:role/ecsTaskExecutionRole",
     "containerDefinitions": [
         {
-            "name": "laravel-app", 
-            "image": "410539830770.dkr.ecr.eu-west-2.amazonaws.com/laravel/app:latest", 
+            "name": "<PROJECT>-app", 
+            "image": "<ACCOUNT>.dkr.ecr.eu-west-2.amazonaws.com/<PROJECT>/app:latest", 
             "portMappings": [
                 {
                     "containerPort": 9000, 
@@ -19,7 +19,7 @@
                 "logDriver": "awslogs",
                 "options":
                     {
-                    "awslogs-group": "/ecs/laravel-app",
+                    "awslogs-group": "/ecs/<PROJECT>-app",
                     "awslogs-region": "eu-west-2",
                     "awslogs-stream-prefix": "ecs"
                     }
@@ -39,15 +39,15 @@
                 },
                 {
                     "name": "DB_DATABASE",
-                    "value": "laravel"
+                    "value": "<PROJECT>"
                 },
                 {
                     "name": "DB_USERNAME",
-                    "value": "laraveluser"
+                    "value": "<PROJECT>user"
                 },
                 {
                     "name": "DB_PASSWORD",
-                    "value": "laravelpass"
+                    "value": "<PROJECT>pass"
                 },
                 {
                     "name": "ENVIRONMENT",

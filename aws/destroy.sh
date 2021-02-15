@@ -2,7 +2,7 @@
 
 set -eux
 
-PROJECT="laravel"
+PROJECT="$(cat project.data)"
 REGION="eu-west-2"
 VPCID=''
 IGWID=''
@@ -183,13 +183,13 @@ delete_codePipelineServiceRole () {
 
 delete_artifactS3Bucket () {
 
-    aws s3 rb s3://codepipeline-eu-west-2-laravel --force
+    aws s3 rb s3://codepipeline-eu-west-2-"$PROJECT" --force
 
 }
 
 delete_codePipeline () {
 
-    aws codepipeline delete-pipeline --name laravel
+    aws codepipeline delete-pipeline --name "$PROJECT"
 
 }
 

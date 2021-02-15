@@ -3,17 +3,17 @@
   "Statement": [
    {
       "Effect": "Allow",
-      "Resource": "arn:aws:codestar-connections:eu-west-2:410539830770:*",
+      "Resource": "arn:aws:codestar-connections:eu-west-2:<ACCOUNT>:*",
       "Action": "codestar-connections:UseConnection"
     },
     {
       "Effect": "Allow",
-      "Resource": "arn:aws:s3:::codepipeline-eu-west-2-laravel/*",
+      "Resource": "arn:aws:s3:::codepipeline-eu-west-2-<PROJECT>/*",
       "Action": "s3:*"
     },
     {
       "Effect": "Allow",
-      "Resource": "arn:aws:codebuild:eu-west-2:410539830770:*",
+      "Resource": "arn:aws:codebuild:eu-west-2:<ACCOUNT>:*",
       "Action": [
           "codebuild:StartBuild",
           "codebuild:BatchGetBuilds"

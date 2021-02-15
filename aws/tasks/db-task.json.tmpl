@@ -1,11 +1,11 @@
 {
-    "family": "laravel-db", 
+    "family": "<PROJECT>-db", 
     "networkMode": "awsvpc",
-    "executionRoleArn": "arn:aws:iam::410539830770:role/ecsTaskExecutionRole",
+    "executionRoleArn": "arn:aws:iam::<ACCOUNT>:role/ecsTaskExecutionRole",
     "containerDefinitions": [
         {
-            "name": "laravel-db", 
-            "image": "410539830770.dkr.ecr.eu-west-2.amazonaws.com/laravel/db:latest",
+            "name": "<PROJECT>-db", 
+            "image": "<ACCOUNT>.dkr.ecr.eu-west-2.amazonaws.com/<PROJECT>/db:latest",
             "portMappings": [
                 {
                     "containerPort": 3306, 
@@ -19,7 +19,7 @@
                 "logDriver": "awslogs",
                 "options":
                     {
-                    "awslogs-group": "/ecs/laravel-db",
+                    "awslogs-group": "/ecs/<PROJECT>-db",
                     "awslogs-region": "eu-west-2",
                     "awslogs-stream-prefix": "ecs"
                     }
@@ -27,7 +27,7 @@
            "environment": [
                 {
                     "name": "MYSQL_DATABASE",
-                    "value": "laravel"
+                    "value": "<PROJECT>"
                 },
                 {
                     "name": "MYSQL_ROOT_PASSWORD",
@@ -46,7 +46,7 @@
         {
             "name": "dbdata",
             "efsVolumeConfiguration": {
-                "fileSystemId": "fs-0d0937fc"
+                "fileSystemId": "<FILESYSTEMID>"
             }
         }
     ],
