@@ -72,10 +72,15 @@ delete_ecrRepos () {
 
 delete_cloudwatchLogGroups () {
 
+    # Delete log groups for ECS
     for i in {app,db,webserver}; do
         aws logs delete-log-group \
         --log-group-name /ecs/"$PROJECT"-"$i"
     done
+    
+    # Delete log group for code build
+    aws logs delete-log-group \
+        --log-group-name /codebuild/"$PROJECT"
 
 }
 

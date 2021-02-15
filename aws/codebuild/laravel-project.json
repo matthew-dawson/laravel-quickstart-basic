@@ -19,7 +19,7 @@
     "logsConfig": {
         "cloudWatchLogs": {
             "status": "ENABLED",
-            "groupName": "/ecs/laravel",
+            "groupName": "/codebuild/laravel",
             "streamName": "codeBuild"
         }
     }
