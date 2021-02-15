@@ -171,12 +171,11 @@ delete_codePipelineServiceRole () {
         --role-name CodePipelineServiceRole \
         --policy-name CodePipelineServiceRolePolicy
 
-# Detach the ECR policy
+    # Detach the ECR policy
     aws iam detach-role-policy \
         --role-name CodePipelineServiceRole \
         --policy-arn arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess
 
-    # Delete the role
     aws iam delete-role \
         --role-name CodePipelineServiceRole
 
@@ -191,6 +190,18 @@ delete_artifactS3Bucket () {
 delete_codePipeline () {
 
     aws codepipeline delete-pipeline --name laravel
+
+}
+
+delete_codeDeployServiceRole () {
+    ## TODO WIP
+    # Detach the Code Deploy policy
+    aws iam detach-role-policy \
+        --role-name CodeDeployServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS
+
+    aws iam delete-role \
+        --role-name CodeDeployServiceRole
 
 }
 

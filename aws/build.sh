@@ -103,6 +103,7 @@ create_vpc () {
         --gateway-id "$IGWID"
 
     # Determine subnet IDs
+    ## TODO grab the subnet ID during creation of the subnet
     SUBNETID0=$(aws ec2 describe-subnets \
         --filters "Name=vpc-id,Values=$VPCID" \
         --query 'Subnets[*].{ID:SubnetId,CIDR:CidrBlock}' \
@@ -169,12 +170,12 @@ create_codeBuildServiceRole () {
 
     aws iam create-role \
         --role-name CodeBuildServiceRole \
-        --assume-role-policy-document file://codebuild/create-role.json
+        --assume-role-policy-document file://codeBuild/create-role.json
 
     aws iam put-role-policy \
         --role-name CodeBuildServiceRole \
         --policy-name CodeBuildServiceRolePolicy \
-        --policy-document file://codebuild/create-role-policy.json
+        --policy-document file://codeBuild/create-role-policy.json
 
     # Add secrets manager permissions to code build role
     aws iam attach-role-policy \
@@ -193,7 +194,7 @@ create_codeBuildProject () {
     sleep 20
 
     aws codebuild create-project \
-        --cli-input-json file://codebuild/"$PROJECT"-project.json
+        --cli-input-json file://codeBuild/"$PROJECT"-project.json
 
     ## Run the build to populate the ECR repos
 #    aws codebuild start-build \
@@ -308,7 +309,7 @@ create_codePipelineServiceRole () {
 
     aws iam create-role \
         --role-name CodePipelineServiceRole \
-        --assume-role-policy-document file://codepipeline/create-role.json
+        --assume-role-policy-document file://codePipeline/create-role.json
 
     aws iam attach-role-policy \
         --role-name CodePipelineServiceRole \
@@ -318,7 +319,7 @@ create_codePipelineServiceRole () {
     aws iam put-role-policy \
         --role-name CodePipelineServiceRole \
         --policy-name CodePipelineServiceRolePolicy \
-        --policy-document file://codepipeline/create-role-policy.json
+        --policy-document file://codePipeline/create-role-policy.json
 
 
 }
@@ -332,9 +333,47 @@ create_artifactS3Bucket () {
 create_codePipeline () {
 
     aws codepipeline create-pipeline \
-        --cli-input-json file://codepipeline/create-pipeline.json
+        --cli-input-json file://codePipeline/create-pipeline.json
 
 }
+
+create_ecsServices () {
+    ## TODO - WIP
+    for i in {app,db,web}; do
+        aws ecs create-service --cluster "$CLUSTERNAME" \
+            --service-name "$PROJECT"-"$i" \
+            ## TODO pull the latest task-definition revision
+            --task-definition "$PROJECT"-$"i":1 \
+            --desired-count 1 \
+            --launch-type "FARGATE" \
+            --network-configuration \
+            "awsvpcConfiguration={subnets=[$SUBNETID0,$SUBNETID1],securityGroups=$SECURITYGROUPID,assignPublicIp=ENABLED}"
+    done
+
+}
+
+create_loadBalancer () {
+    ## TODO - WIP
+    LOADBALANCERARN=$(aws elbv2 create-load-balancer \
+        --name "$PROJECT"-alb \
+        --subnets "$SUBNETID0" "$SUBNETID1" \
+        --security-groups "$SECURITYGROUPID" \
+        | grep 'LoadBalancerArn' | awk '{ print $2 }' \
+        | tr -d ',"')
+
+}
+
+create_codeDeployServiceRole () {
+    ## TODO - WIP
+    aws iam create-role --role-name CodeDeployServiceRole \
+        --assume-role-policy-document file://codeDeploy/create-role.json
+
+    aws iam attach-role-policy --role-name CodeDeployServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/AWSCodeDeployRoleForECS
+
+}
+
+
 
 main () {
     ## TODO Populate the docker credentials within secrets manager
@@ -350,8 +389,8 @@ main () {
     create_codeBuildProject
     create_codePipelineServiceRole
     # TODO Create ECS Services
-    # TODO Create Load Balancer
     # TODO Create load balancer target group
+    # TODO Create Load Balancer
     create_codePipeline
     # TODO Create Code Deploy Service Role
     # TODO Create Code Deploy build
