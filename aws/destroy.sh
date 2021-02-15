@@ -120,9 +120,9 @@ delete_ecsTaskExecutionRole () {
 delete_codeBuildServiceRole () {
 
     ## Detach policies first
-    aws iam detach-role-policy \
+    aws iam delete-role-policy \
         --role-name CodeBuildServiceRole \
-        --policy-arn arn:aws:iam::410539830770:policy/service-role/CodeBuildServiceRolePolicy
+        --policy-name CodeBuildServiceRolePolicy
 
     # Detach the Secrets Manager Policy
     aws iam detach-role-policy \
@@ -132,7 +132,7 @@ delete_codeBuildServiceRole () {
     # Detach the ECR policy
     aws iam detach-role-policy \
         --role-name CodeBuildServiceRole \
-        --policy-arn arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContaierBuilds
+        --policy-arn arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds
 
     aws iam delete-role \
         --role-name CodeBuildServiceRole

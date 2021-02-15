@@ -176,18 +176,31 @@ create_codeBuildServiceRole () {
         --policy-name CodeBuildServiceRolePolicy \
         --policy-document file://codebuild/create-role-policy.json
 
+    # Add secrets manager permissions to code build role
+    aws iam attach-role-policy \
+        --role-name CodeBuildServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
+    # Add ECR permissions to the code build role
+    aws iam attach-role-policy \
+        --role-name CodeBuildServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContainerBuilds
 }
 
 create_codeBuildProject () {
 
+    # Give the permissions time to apply
+    sleep 20
+
     aws codebuild create-project \
         --cli-input-json file://codebuild/"$PROJECT"-project.json
 
+    ## Run the build to populate the ECR repos
+    aws codebuild start-build \
+        --project-name "$PROJECT" \
+#        --buildspec-override buildspec-full.yml
+
 }
-## Create CodeDeploy build
-
-## Build the images
-
 ## Create load balancer
 
 ## Creat load balancer target group
@@ -306,7 +319,6 @@ main () {
     # TODO Create Code Pipeline Project
     # TODO Create Code Deploy Service Role
     # TODO Create Code Deploy build
-    # TODO Build the images
     # TODO Create Load Balancer
     # TODO Create load balancer target group
     create_ecsCluster
