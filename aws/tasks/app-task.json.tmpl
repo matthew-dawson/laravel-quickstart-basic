@@ -1,0 +1,64 @@
+{
+    "family": "<PROJECT>-app", 
+    "networkMode": "awsvpc",
+    "executionRoleArn": "arn:aws:iam::<ACCOUNT>:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "<PROJECT>-app", 
+            "image": "<ACCOUNT>.dkr.ecr.eu-west-2.amazonaws.com/<PROJECT>/app:latest", 
+            "portMappings": [
+                {
+                    "containerPort": 9000, 
+                    "hostPort": 9000, 
+                    "protocol": "tcp"
+                }
+            ], 
+            "essential": true,
+            "logConfiguration":
+                {
+                "logDriver": "awslogs",
+                "options":
+                    {
+                    "awslogs-group": "/ecs/<PROJECT>-app",
+                    "awslogs-region": "eu-west-2",
+                    "awslogs-stream-prefix": "ecs"
+                    }
+                },
+            "environment": [
+                {
+                    "name": "APP_KEY",
+                    "value": "b809vCwvtawRbsG0BmP1tWgnlXQypSKf"
+                },
+                {
+                    "name": "APP_URL",
+                    "value": "http://localhost"
+                },
+                {
+                    "name": "DB_HOST",
+                    "value": "db.local"
+                },
+                {
+                    "name": "DB_DATABASE",
+                    "value": "<PROJECT>"
+                },
+                {
+                    "name": "DB_USERNAME",
+                    "value": "<PROJECT>user"
+                },
+                {
+                    "name": "DB_PASSWORD",
+                    "value": "<PROJECT>pass"
+                },
+                {
+                    "name": "ENVIRONMENT",
+                    "value": "production"
+                }
+            ]
+         }
+    ], 
+    "requiresCompatibilities": [
+        "FARGATE"
+    ], 
+    "cpu": "256", 
+    "memory": "512"
+}

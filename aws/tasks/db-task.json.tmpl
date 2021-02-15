@@ -1,0 +1,58 @@
+{
+    "family": "<PROJECT>-db", 
+    "networkMode": "awsvpc",
+    "executionRoleArn": "arn:aws:iam::<ACCOUNT>:role/ecsTaskExecutionRole",
+    "containerDefinitions": [
+        {
+            "name": "<PROJECT>-db", 
+            "image": "<ACCOUNT>.dkr.ecr.eu-west-2.amazonaws.com/<PROJECT>/db:latest",
+            "portMappings": [
+                {
+                    "containerPort": 3306, 
+                    "hostPort": 3306, 
+                    "protocol": "tcp"
+                }
+            ], 
+            "essential": true,
+             "logConfiguration": 
+                {
+                "logDriver": "awslogs",
+                "options":
+                    {
+                    "awslogs-group": "/ecs/<PROJECT>-db",
+                    "awslogs-region": "eu-west-2",
+                    "awslogs-stream-prefix": "ecs"
+                    }
+                },
+           "environment": [
+                {
+                    "name": "MYSQL_DATABASE",
+                    "value": "<PROJECT>"
+                },
+                {
+                    "name": "MYSQL_ROOT_PASSWORD",
+                    "value": "feelingLucky"
+                }
+            ],
+            "mountPoints": [
+                {
+                    "sourceVolume": "dbdata",
+                    "containerPath": "/var/lib/mysql"
+                }
+            ]
+        }
+    ],
+    "volumes": [
+        {
+            "name": "dbdata",
+            "efsVolumeConfiguration": {
+                "fileSystemId": "<FILESYSTEMID>"
+            }
+        }
+    ],
+    "requiresCompatibilities": [
+        "FARGATE"
+    ], 
+    "cpu": "256", 
+    "memory": "512"
+}

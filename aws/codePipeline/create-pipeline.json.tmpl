@@ -1,0 +1,68 @@
+{
+  "pipeline": {
+    "roleArn": "arn:aws:iam::<ACCOUNT>:role/CodePipelineServiceRole",
+    "stages": [
+      {
+        "name": "Source",
+        "actions": [
+          {
+            "inputArtifacts": [],
+            "name": "Source",
+            "actionTypeId": {
+              "category": "Source",
+              "owner": "AWS",
+              "version": "1",
+              "provider": "CodeStarSourceConnection"
+            },
+            "outputArtifacts": [
+              {
+                "name": "SourceArtifact"
+              }
+            ],
+            "configuration": {
+              "ConnectionArn": "arn:aws:codestar-connections:eu-west-2:<ACCOUNT>:connection/59b531a0-0a9f-41db-9454-8efe972659b6",
+              "FullRepositoryId": "matthew-dawson/<PROJECT>-quickstart-basic",
+              "BranchName": "master",
+              "OutputArtifactFormat": "CODE_ZIP"
+            },
+            "runOrder": 1
+          }
+        ]
+      },
+      {
+        "name": "Build",
+        "actions": [
+          {
+            "inputArtifacts": [
+              {
+                "name": "SourceArtifact"
+              }
+            ],
+            "name": "Build",
+            "actionTypeId": {
+              "category": "Build",
+              "owner": "AWS",
+              "version": "1",
+              "provider": "CodeBuild"
+            },
+            "outputArtifacts": [
+              {
+                "name": "default"
+              }
+            ],
+            "configuration": {
+              "ProjectName": "<PROJECT>"
+            },
+            "runOrder": 1
+          }
+        ]
+      }
+    ],
+    "artifactStore": {
+      "type": "S3",
+      "location": "codepipeline-eu-west-2-<PROJECT>"
+    },
+    "name": "<PROJECT>",
+    "version": 1
+  }
+}
