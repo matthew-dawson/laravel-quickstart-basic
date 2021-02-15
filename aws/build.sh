@@ -201,9 +201,6 @@ create_codeBuildProject () {
         --buildspec-override buildspec-full.yml
 
 }
-## Create load balancer
-
-## Creat load balancer target group
 
 create_ecsCluster () {
 
@@ -299,14 +296,26 @@ create_cloudwatchLogGroups() {
 
     for i in {app,db,webserver}; do
         aws logs create-log-group \
-        --log-group-name /ecs/"$PROJECT"-"$i"
+            --log-group-name /ecs/"$PROJECT"-"$i"
     done
+
+    aws logs create-log-group \
+        --log-group-name /codebuild/"$PROJECT"
 
 }
 
-## Create ECS service
+create_codePipelineServiceRole () {
 
-## Create Code Pipeline
+    aws iam create-role \
+        --role-name CodePipelineServiceRole \
+        --assume-role-policy-document file://codepipeline/create-role.json
+
+    aws iam attach-role-policy \
+        --role-name CodePipelineServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess
+
+
+}
 
 main () {
     ## TODO Populate the docker credentials within secrets manager

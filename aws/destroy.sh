@@ -164,7 +164,18 @@ delete_ecsCluster () {
 
 }
 
+delete_codePipelineServiceRole () {
 
+    # Detach the ECR policy
+    aws iam detach-role-policy \
+        --role-name CodePipelineServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/AWSCodePipeline_FullAccess
+
+    # Delete the role
+    aws iam delete-role \
+        --role-name CodePipelineServiceRole
+
+}
 
 main () {
     # TODO Delete Code Pipeline
