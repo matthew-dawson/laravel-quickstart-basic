@@ -321,21 +321,21 @@ main () {
     ## TODO Populate the docker credentials within secrets manager
     create_vpc
     create_ecrRepos
+    create_cloudwatchLogGroups
     # TODO Create s3 bucket for artefacts
+    create_efs
+    create_ecsCluster
+    create_ecsTaskExecutionRole
+    create_ecsTaskRegistrations
     create_codeBuildServiceRole
     create_codeBuildProject
-    # TODO Create Code Pipeline Service Role
+    create_codePipelineServiceRole
+    # TODO Create Load Balancer
+    # TODO Create load balancer target group
+    # TODO Create ECS Services
     # TODO Create Code Pipeline Project
     # TODO Create Code Deploy Service Role
     # TODO Create Code Deploy build
-    # TODO Create Load Balancer
-    # TODO Create load balancer target group
-    create_ecsCluster
-    create_efs
-    create_ecsTaskExecutionRole
-    create_ecsTaskRegistrations
-    create_cloudwatchLogGroups
-    # TODO Create ECS Services
     # TODO Create Code Pipeline
 
     echo "--==SUCCESS==--"

@@ -179,17 +179,18 @@ delete_codePipelineServiceRole () {
 
 main () {
     # TODO Delete Code Pipeline
-    # TODO Delete ECS Services
-    delete_cloudwatchLogGroups
-    # TODO Delete/deregister task definitions
-    delete_efs
-    delete_ecsTaskExecutionRole
-    delete_ecsCluster
+    delete_codePipelineServiceRole
     # TODO Delete Load Balancer
     # TODO Delete the load balancer target groups
-    delete_codeBuildServiceRole
+    # TODO Delete ECS Services
+    # TODO Delete/deregister task definitions
+    delete_ecsTaskExecutionRole
+    delete_ecsCluster
     delete_codeBuildProject
+    delete_codeBuildServiceRole
     # TODO Delete Code Deploy build
+    delete_cloudwatchLogGroups
+    delete_efs
     delete_ecrRepos
     delete_vpc
     # TODO Remove Docker credentials from secrets manager
