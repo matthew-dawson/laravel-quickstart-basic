@@ -183,7 +183,7 @@ delete_codePipelineServiceRole () {
 
 delete_artifactS3Bucket () {
 
-    aws s3 rb s3://codepipeline-eu-west-2-laravel
+    aws s3 rb s3://codepipeline-eu-west-2-laravel --force
 
 }
 

@@ -343,6 +343,8 @@ create_ecsServices () {
         aws ecs create-service --cluster "$CLUSTERNAME" \
             --service-name "$PROJECT"-"$i" \
             ## TODO pull the latest task-definition revision
+            ## aws ecs list-task-definitions --family-prefix "$PROJECT"-"$i" --status ACTIVE --sort DESC | grep arn | head -n1 | sed 's/.*://' | tr -d ',"'
+
             --task-definition "$PROJECT"-$"i":1 \
             --desired-count 1 \
             --launch-type "FARGATE" \
