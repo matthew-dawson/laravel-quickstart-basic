@@ -122,7 +122,17 @@ delete_codeBuildServiceRole () {
     ## Detach policies first
     aws iam detach-role-policy \
         --role-name CodeBuildServiceRole \
-        --policy-arn arn:aws:iam::aws:policy/service-role/ColdeBuildServiceRolePolicy
+        --policy-arn arn:aws:iam::410539830770:policy/service-role/CodeBuildServiceRolePolicy
+
+    # Detach the Secrets Manager Policy
+    aws iam detach-role-policy \
+        --role-name CodeBuildServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/SecretsManagerReadWrite
+
+    # Detach the ECR policy
+    aws iam detach-role-policy \
+        --role-name CodeBuildServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/EC2InstanceProfileForImageBuilderECRContaierBuilds
 
     aws iam delete-role \
         --role-name CodeBuildServiceRole

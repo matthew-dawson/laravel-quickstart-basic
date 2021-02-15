@@ -1,6 +1,6 @@
-/vendor
-/node_modules
-/public/storage
-Homestead.yaml
-Homestead.json
-.env
+src/vendor
+src/node_modules
+src/public/storage
+src/Homestead.yaml
+src/Homestead.json
+src/.env
