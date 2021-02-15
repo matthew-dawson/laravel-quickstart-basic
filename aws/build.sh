@@ -317,12 +317,18 @@ create_codePipelineServiceRole () {
 
 }
 
+create_artifactS3Bucket () {
+
+    aws s3 mb s3://codepipeline-eu-west-2-laravel
+
+}
+
 main () {
     ## TODO Populate the docker credentials within secrets manager
     create_vpc
     create_ecrRepos
     create_cloudwatchLogGroups
-    # TODO Create s3 bucket for artefacts
+    create_artifactS3Bucket
     create_efs
     create_ecsCluster
     create_ecsTaskExecutionRole

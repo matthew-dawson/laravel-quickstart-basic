@@ -177,8 +177,15 @@ delete_codePipelineServiceRole () {
 
 }
 
+delete_artifactS3Bucket () {
+
+    aws s3 rb s3://codepipeline-eu-west-2-laravel
+
+}
+
 main () {
     # TODO Delete Code Pipeline
+    delete_artifactS3Bucket
     delete_codePipelineServiceRole
     # TODO Delete Load Balancer
     # TODO Delete the load balancer target groups
