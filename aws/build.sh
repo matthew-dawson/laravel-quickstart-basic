@@ -198,7 +198,7 @@ create_codeBuildProject () {
     ## Run the build to populate the ECR repos
     aws codebuild start-build \
         --project-name "$PROJECT" \
-#        --buildspec-override buildspec-full.yml
+        --buildspec-override buildspec-full.yml
 
 }
 ## Create load balancer
