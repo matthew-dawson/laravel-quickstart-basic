@@ -165,6 +165,25 @@ create_ecrRepos () {
 
 }
 
+create_codeBuildServiceRole () {
+
+    aws iam create-role \
+        --role-name CodeBuildServiceRole \
+        --assume-role-policy-document file://codebuild/create-role.json
+
+    aws iam put-role-policy \
+        --role-name CodeBuildServiceRole \
+        --policy-name CodeBuildServiceRolePolicy \
+        --policy-document file://codebuild/create-role-policy.json
+
+}
+
+create_codeBuildProject () {
+
+    aws codebuild create-project \
+        --cli-input-json file://codebuild/"$PROJECT"-project.json
+
+}
 ## Create CodeDeploy build
 
 ## Build the images
@@ -280,6 +299,12 @@ main () {
     ## TODO Populate the docker credentials within secrets manager
     create_vpc
     create_ecrRepos
+    # TODO Create s3 bucket for artefacts
+    create_codeBuildServiceRole
+    create_codeBuildProject
+    # TODO Create Code Pipeline Service Role
+    # TODO Create Code Pipeline Project
+    # TODO Create Code Deploy Service Role
     # TODO Create Code Deploy build
     # TODO Build the images
     # TODO Create Load Balancer
@@ -291,6 +316,8 @@ main () {
     create_cloudwatchLogGroups
     # TODO Create ECS Services
     # TODO Create Code Pipeline
+
+    echo "--==SUCCESS==--"
 }
 
 main

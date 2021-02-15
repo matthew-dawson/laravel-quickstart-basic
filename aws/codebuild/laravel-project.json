@@ -1,0 +1,26 @@
+{
+    "name": "laravel",
+    "source": {
+        "type": "GITHUB",
+        "location": "https://github.com/matthew-dawson/laravel-quickstart-basic.git",
+        "gitCloneDepth": 1
+    },
+    "sourceVersion": "master",
+    "artifacts": {
+        "type": "NO_ARTIFACTS"
+    },
+    "environment": {
+        "type": "LINUX_CONTAINER",
+        "image": "aws/codebuild/standard:4.0",
+        "computeType": "BUILD_GENERAL1_SMALL",
+        "privilegedMode": true
+    },
+    "serviceRole": "arn:aws:iam::410539830770:role/CodeBuildServiceRole",
+    "logsConfig": {
+        "cloudWatchLogs": {
+            "status": "ENABLED",
+            "groupName": "/ecs/laravel",
+            "streamName": "codeBuild"
+        }
+    }
+}

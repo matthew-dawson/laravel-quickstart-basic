@@ -117,6 +117,25 @@ delete_ecsTaskExecutionRole () {
 
 }
 
+delete_codeBuildServiceRole () {
+
+    ## Detach policies first
+    aws iam detach-role-policy \
+        --role-name CodeBuildServiceRole \
+        --policy-arn arn:aws:iam::aws:policy/service-role/ColdeBuildServiceRolePolicy
+
+    aws iam delete-role \
+        --role-name CodeBuildServiceRole
+
+}
+
+delete_codeBuildProject () {
+
+    aws codebuild delete-project \
+        --name "$PROJECT"
+
+}
+
 delete_ecsCluster () {
 
     local DATAFILE="cluster.data"
@@ -142,10 +161,14 @@ main () {
     delete_ecsCluster
     # TODO Delete Load Balancer
     # TODO Delete the load balancer target groups
+    delete_codeBuildServiceRole
+    delete_codeBuildProject
     # TODO Delete Code Deploy build
     delete_ecrRepos
     delete_vpc
     # TODO Remove Docker credentials from secrets manager
+
+    echo "--==SUCCESS==--"
 }
 
 main

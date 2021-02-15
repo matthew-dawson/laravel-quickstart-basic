@@ -48,6 +48,10 @@
                 {
                     "name": "DB_PASSWORD",
                     "value": "laravelpass"
+                },
+                {
+                    "name": "ENVIRONMENT",
+                    "value": "production"
                 }
             ]
          }
