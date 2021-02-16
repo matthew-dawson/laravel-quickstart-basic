@@ -35,6 +35,14 @@ sed -i "s/<PROJECT>/$PROJECT/g" codePipeline/create-role-policy.json
 sed "s/<ACCOUNT>/$ACCOUNT/g" codePipeline/create-pipeline.json.tmpl > codePipeline/create-pipeline.json
 sed -i "s/<PROJECT>/$PROJECT/g" codePipeline/create-pipeline.json
 
+## Determine Codestar integration
+CONNECTIONARN=$(aws codestar-connections \
+    list-connections \
+    | grep 'ConnectionArn' \
+    | awk '{ print $2 }' \
+    | tr -d ',"')
+
+sed -i "s#<CONNECTIONARN>#$CONNECTIONARN#g" codePipeline/create-pipeline.json
 
 create_vpc () {
 
@@ -83,16 +91,26 @@ create_vpc () {
     echo "NAMESPACEID $NAMESPACEID" >> "$DATAFILE"
 
     # Create a subnet with 10.0.1.0/24 CIDR block
-    aws ec2 create-subnet \
+    SUBNETID0=$(aws ec2 create-subnet \
         --availability-zone "$REGION"a \
         --vpc-id "$VPCID" \
-        --cidr-block 10.0.1.0/24
+        --cidr-block 10.0.1.0/24 \
+        | grep 'SubnetId' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
 
-    # Create a subnet with 10.0.0.0/24 CIDR block
-    aws ec2 create-subnet \
+    echo "SUBNETID0 $SUBNETID0" >> "$DATAFILE"
+
+# Create a subnet with 10.0.0.0/24 CIDR block
+    SUBNETID1=$(aws ec2 create-subnet \
         --availability-zone "$REGION"b \
         --vpc-id "$VPCID" \
-        --cidr-block 10.0.0.0/24
+        --cidr-block 10.0.0.0/24 \
+        | grep 'SubnetId' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
+
+    echo "SUBNETID1 $SUBNETID1" >> "$DATAFILE"
 
     IGWID=$(aws ec2 create-internet-gateway \
         | grep 'InternetGatewayId' \
@@ -119,28 +137,6 @@ create_vpc () {
         --route-table-id "$ROUTETABLEID" \
         --destination-cidr-block 0.0.0.0/0 \
         --gateway-id "$IGWID"
-
-    # Determine subnet IDs
-    ## TODO grab the subnet ID during creation of the subnet
-    SUBNETID0=$(aws ec2 describe-subnets \
-        --filters "Name=vpc-id,Values=$VPCID" \
-        --query 'Subnets[*].{ID:SubnetId,CIDR:CidrBlock}' \
-        | grep 'ID"' \
-        | awk '{ print $2 }' \
-        | tr -d ',"' \
-        | head -n1)
-
-    echo "SUBNETID0 $SUBNETID0" >> "$DATAFILE"
-
-    SUBNETID1=$(aws ec2 describe-subnets \
-        --filters "Name=vpc-id,Values=$VPCID" \
-        --query 'Subnets[*].{ID:SubnetId,CIDR:CidrBlock}' \
-        | grep 'ID"' \
-        | awk '{ print $2 }' \
-        | tr -d ',"' \
-        | tail -n1)
-
-    echo "SUBNETID1 $SUBNETID1" >> "$DATAFILE"
 
     # Associate the subnets with the route table
     aws ec2 associate-route-table \
@@ -215,9 +211,9 @@ create_codeBuildProject () {
         --cli-input-json file://codeBuild/"$PROJECT"-project.json
 
     ## Run the build to populate the ECR repos
-#    aws codebuild start-build \
-#        --project-name "$PROJECT" \
-#        --buildspec-override buildspec-full.yml
+    aws codebuild start-build \
+        --project-name "$PROJECT" \
+        --buildspec-override buildspec-full.yml
 
 }
 
@@ -286,7 +282,7 @@ create_ecsTaskExecutionRole () {
         ROLEARN=$(aws iam create-role \
         --region "$REGION" \
         --role-name "$ROLENAME" \
-        --assume-role-policy-document file://task-execution-assume-role.json \
+        --assume-role-policy-document file://ecs-task-execution-assume-role.json \
         | grep 'Arn' \
         | awk '{ print $2 }' \
         | tr -d ',"' )
@@ -308,6 +304,11 @@ create_ecsTaskRegistrations () {
     aws ecs register-task-definition --cli-input-json file://tasks/app-task.json
     aws ecs register-task-definition --cli-input-json file://tasks/webserver-task.json
     aws ecs register-task-definition --cli-input-json file://tasks/db-task.json
+
+    # Update the task definition for code deploy
+    for i in {app,db,webserver}; do
+        sed -i "/image/s/$i/<IMAGE1_NAME>/" tasks/"$i"-task.json
+    done
 
 }
 
