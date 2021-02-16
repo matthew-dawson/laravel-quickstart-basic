@@ -9,7 +9,10 @@ scripts so that it can be run within AWS.  When complete, developers
 should be able to deploy changes to the codebase via git, without
 needing access to the production environment.
 
-The original code is located at https://github.com/laravel/quickstart-basic
+The original code is located at https://github.com/laravel/quickstart-basic,
+with the original commit of f6cebbc60224bed89e4443dd69a8f770bc75e837 being
+the starting point for this execrise.
+
 
 The requirements :
 * Logs should be written somewhere sensible
