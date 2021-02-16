@@ -1,0 +1,45 @@
+{
+    "taskDefinition": "<FAMILY>",
+    "cluster": "<CLUSTERNAME>",
+    "loadBalancers": [
+        {
+            "targetGroupArn": "<TARGETGROUPARN0>",
+            "loadBalancerName": "<PROJECT>-app-alb",
+            "containerName": "<CONTAINERNAME>",
+            "containerPort": 9000
+        },
+        {
+            "targetGroupArn": "<TARGETGROUPARN1>",
+            "loadBalancerName": "<PROJECT>-app-alb",
+            "containerName": "<CONTAINERNAME>",
+            "containerPort": 9000
+        }
+    ],
+    "serviceRegistries": [
+        {
+            "registryArn": "<REGISTRYARN>",
+            "port": 80,
+            "containerName": "app",
+            "containerPort": 9000
+        }
+    ],
+    "desiredCount": 1,
+    "launchType": "FARGATE",
+    "platformVersion": "1.4.0",
+    "schedulingStrategy": "REPLICA",
+    "deploymentController": {
+        "type": "CODE_DEPLOY"
+    },
+    "networkConfiguration": {
+        "awsvpcConfiguration": {
+            "subnets": [
+                "<SUBNETID0>",
+                "<SUBNETID1>"
+            ],
+            "securityGroups": [
+                "<SECURITYGROUPID>"
+            ],
+            "assignPublicIp": "ENABLED"
+        }
+    }
+}

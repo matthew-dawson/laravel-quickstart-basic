@@ -20,7 +20,7 @@ delete_vpc () {
     ROUTETABLEID=$(grep 'ROUTETABLEID' "$DATAFILE" \
         | awk '{ print $2 }')
     NAMESPACEID=$(grep 'NAMESPACEID' "$DATAFILE" \
-        | awk '{print $2 }')
+        | awk '{ print $2 }')
     #SECURITYGROUPID=$(grep 'SECURITYGROUPID' "$DATAFILE" \
     #    | awk '{ print $2 }')
  
@@ -205,21 +205,51 @@ delete_codeDeployServiceRole () {
 
 }
 
+delete_loadbalancer () {
+
+    aws elbv2 delete-listener \
+        --listener-arn \
+        "$(grep LISTENERARN loadbalancer.data \
+        | awk '{ print $2 }')"
+
+    aws elbv2 delete-target-group \
+        --target-group-arn \
+        "$(grep TARGETGROUPARN loadbalancer.data \
+        | awk '{ print $2 }')"
+
+    aws elbv2 delete-load-balancer \
+        --load-balancer-arn \
+        "$(grep LOADBALANCERARN loadbalancer.data \
+        | awk '{ print $2 }')"
+
+    rm loadbalancer.data
+
+}
+
+delete_ecsServices () {
+
+    for i in {app,db,webserver}; do
+        delete-service \
+        --service "$i"-service \
+        --force
+    done
+
+}
+
 main () {
     delete_codePipeline
-    delete_artifactS3Bucket
+    # TODO Delete Code Deploy build
+#    delete_ecsServices
+    delete_loadbalancer
     delete_codePipelineServiceRole
-    # TODO Delete Load Balancer
-    # TODO Delete the load balancer target groups
-    # TODO Delete ECS Services
+    delete_codeBuildProject
+    delete_codeBuildServiceRole
     # TODO Delete/deregister task definitions
     delete_ecsTaskExecutionRole
     delete_ecsCluster
-    delete_codeBuildProject
-    delete_codeBuildServiceRole
-    # TODO Delete Code Deploy build
-    delete_cloudwatchLogGroups
     delete_efs
+    delete_artifactS3Bucket
+    delete_cloudwatchLogGroups
     delete_ecrRepos
     delete_vpc
     # TODO Remove Docker credentials from secrets manager

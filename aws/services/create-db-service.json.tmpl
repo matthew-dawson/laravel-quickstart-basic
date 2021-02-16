@@ -1,0 +1,45 @@
+{
+    "taskDefinition": "<FAMILY>",
+    "cluster": "<CLUSTERNAME>",
+    "loadBalancers": [
+        {
+            "targetGroupArn": "<TARGETGROUPARN0>",
+            "loadBalancerName": "<PROJECT>-db-alb",
+            "containerName": "<CONTAINERNAME>",
+            "containerPort": 3306
+        },
+        {
+            "targetGroupArn": "<TARGETGROUPARN1>",
+            "loadBalancerName": "<PROJECT>-db-alb",
+            "containerName": "<CONTAINERNAME>",
+            "containerPort": 3306
+        }
+    ],
+    "serviceRegistries": [
+        {
+            "registryArn": "<REGISTRYARN>",
+            "port": 80,
+            "containerName": "db",
+            "containerPort": 3306
+        }
+    ],
+    "desiredCount": 1,
+    "launchType": "FARGATE",
+    "platformVersion": "1.4.0",
+    "schedulingStrategy": "REPLICA",
+    "deploymentController": {
+        "type": "CODE_DEPLOY"
+    },
+    "networkConfiguration": {
+        "awsvpcConfiguration": {
+            "subnets": [
+                "<SUBNETID0>",
+                "<SUBNETID1>"
+            ],
+            "securityGroups": [
+                "<SECURITYGROUPID>"
+            ],
+            "assignPublicIp": "ENABLED"
+        }
+    }
+}

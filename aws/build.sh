@@ -12,28 +12,48 @@ REGION="eu-west-2"
  
 set -eux 
 
-# Determine AWS account
-ACCOUNT=$(aws sts get-caller-identity \
-    | grep 'Account' | awk '{ print $2 }' \
-    | tr -d ',"')
-echo "$ACCOUNT" > account.data
-echo "$PROJECT" > project.data
+init () {
+    # Determine AWS account
+    ACCOUNT=$(aws sts get-caller-identity \
+        | grep 'Account' | awk '{ print $2 }' \
+        | tr -d ',"')
+    echo "$ACCOUNT" > account.data
+    echo "$PROJECT" > project.data
 
-## Order matters here
-for i in {app,db,webserver}; do
-    sed "s/<ACCOUNT>/$ACCOUNT/g" tasks/"$i"-task.json.tmpl > tasks/"$i"-task.json
-    sed -i "s/<PROJECT>/$PROJECT/g" tasks/"$i"-task.json
-done
+    ## Order matters here
+    for i in {app,db,webserver}; do
+        sed "s/<ACCOUNT>/$ACCOUNT/g" tasks/"$i"-task.json.tmpl \
+            > tasks/"$i"-task.json
+        sed -i "s/<PROJECT>/$PROJECT/g" tasks/"$i"-task.json
+    done
 
-## Order matters here
-sed "s/<ACCOUNT>/$ACCOUNT/g" codeBuild/"$PROJECT"-project.json.tmpl > codeBuild/"$PROJECT"-project.json
-sed -i "s/<PROJECT>/$PROJECT/g" codeBuild/"$PROJECT"-project.json
+    ## Order matters here
+    sed "s/<ACCOUNT>/$ACCOUNT/g" \
+        codeBuild/"$PROJECT"-project.json.tmpl \
+        > codeBuild/"$PROJECT"-project.json
+    sed -i "s/<PROJECT>/$PROJECT/g" \
+        codeBuild/"$PROJECT"-project.json
 
-sed "s/<ACCOUNT>/$ACCOUNT/g" codePipeline/create-role-policy.json.tmpl > codePipeline/create-role-policy.json
-sed -i "s/<PROJECT>/$PROJECT/g" codePipeline/create-role-policy.json
+    sed "s/<ACCOUNT>/$ACCOUNT/g" \
+        codePipeline/create-role-policy.json.tmpl \
+        > codePipeline/create-role-policy.json
+    sed -i "s/<PROJECT>/$PROJECT/g" \
+        codePipeline/create-role-policy.json
 
-sed "s/<ACCOUNT>/$ACCOUNT/g" codePipeline/create-pipeline.json.tmpl > codePipeline/create-pipeline.json
-sed -i "s/<PROJECT>/$PROJECT/g" codePipeline/create-pipeline.json
+    sed "s/<ACCOUNT>/$ACCOUNT/g" \
+        codePipeline/create-pipeline.json.tmpl \
+        > codePipeline/create-pipeline.json
+    sed -i "s/<PROJECT>/$PROJECT/g" \
+        codePipeline/create-pipeline.json
+
+    ## Determine Codestar integration
+    CONNECTIONARN=$(aws codestar-connections \
+        list-connections \
+        | grep 'ConnectionArn' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
+
+    sed -i "s#<CONNECTIONARN>#$CONNECTIONARN#g" codePipeline/create-pipeline.json
 
 ## Determine Codestar integration
 CONNECTIONARN=$(aws codestar-connections \
@@ -358,30 +378,74 @@ create_codePipeline () {
 }
 
 create_ecsServices () {
-    ## TODO - WIP
-    for i in {app,db,web}; do
-        aws ecs create-service --cluster "$CLUSTERNAME" \
-            --service-name "$PROJECT"-"$i" \
-            ## TODO pull the latest task-definition revision
-            ## aws ecs list-task-definitions --family-prefix "$PROJECT"-"$i" --status ACTIVE --sort DESC | grep arn | head -n1 | sed 's/.*://' | tr -d ',"'
 
-            --task-definition "$PROJECT"-$"i":1 \
-            --desired-count 1 \
-            --launch-type "FARGATE" \
-            --network-configuration \
-            "awsvpcConfiguration={subnets=[$SUBNETID0,$SUBNETID1],securityGroups=$SECURITYGROUPID,assignPublicIp=ENABLED}"
+    REGISTRYARN=$(aws servicediscovery list-namespaces \
+        | grep 'Arn' | awk '{ print $2 }' | tr -d ',"')
+
+    for i in {app,db,webserver}; do
+        sed "s/<FAMILY>/$PROJECT-$i/" services/create-"$i"-service.json.tmpl \
+            > services/create-"$i"-service.json
+        sed -i "s/<CLUSTERNAME>/$CLUSTERNAME/" services/create-"$i"-service.json
+        sed -i "s#<REGISTRYARN>#$REGISTRYARN#" services/create-"$i"-service.json
+    done
+
+    sed -i "s#<TARGETGROUPARN>#$TARGETGROUPARN#" \
+        services/create-webserver-service.json
+    sed -i "s/<CONTAINERNAME>/$PROJECT-webserver/" \
+        services/create-webserver-service.json
+    sed -i "s/<SUBNETID0>/$SUBNETID0/" \
+        services/create-webserver-service.json
+    sed -i "s/<SUBNETID1>/$SUBNETID1/" \
+        services/create-webserver-service.json
+    sed -i "s/<SECURITYGROUPID>/$SECURITYGROUPID/" \
+        services/create-webserver-service.json
+
+    for i in {app,db,webserver}; do
+        aws ecs create-service \
+            --service-name "$i"-service \
+            --cli-input-json file://services/create-"$i"-service.json
     done
 
 }
 
-create_loadBalancer () {
-    ## TODO - WIP
+create_loadbalancer () {
+    
     LOADBALANCERARN=$(aws elbv2 create-load-balancer \
         --name "$PROJECT"-alb \
+        --scheme internet-facing \
+        --type application \
         --subnets "$SUBNETID0" "$SUBNETID1" \
         --security-groups "$SECURITYGROUPID" \
+        --ip-address-type ipv4 \
         | grep 'LoadBalancerArn' | awk '{ print $2 }' \
         | tr -d ',"')
+
+    echo "LOADBALANCERARN $LOADBALANCERARN" >> loadbalancer.data
+
+    TARGETGROUPARN=$(aws elbv2 create-target-group \
+        --name "$PROJECT"-tg \
+        --protocol HTTP \
+        --port 80 \
+        --vpc-id "$VPCID" \
+        --health-check-protocol HTTP \
+        --health-check-port 80 \
+        --target-type ip \
+        | grep 'TargetGroupArn' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
+
+    echo "TARGETGROUPARN $TARGETGROUPARN" >> loadbalancer.data
+
+    LISTENERARN=$(aws elbv2 create-listener \
+        --load-balancer-arn "$LOADBALANCERARN" \
+        --protocol HTTP \
+        --port 80 \
+        --default-actions Type=forward,TargetGroupArn="$TARGETGROUPARN" \
+        | grep 'ListenerArn' \
+        | awk '{ print $2 }' \
+        | tr -d ',"')
+
+    echo "LISTENERARN $LISTENERARN" >> loadbalancer.data
 
 }
 
@@ -399,6 +463,7 @@ create_codeDeployServiceRole () {
 
 main () {
     ## TODO Populate the docker credentials within secrets manager
+    init
     create_vpc
     create_ecrRepos
     create_cloudwatchLogGroups
@@ -410,11 +475,10 @@ main () {
     create_codeBuildServiceRole
     create_codeBuildProject
     create_codePipelineServiceRole
-    # TODO Create ECS Services
-    # TODO Create load balancer target group
-    # TODO Create Load Balancer
+    create_loadbalancer
+    create_ecsServices
     create_codePipeline
-    # TODO Create Code Deploy Service Role
+#    create_codeDeployServiceRole
     # TODO Create Code Deploy build
 
     echo "--==SUCCESS==--"
