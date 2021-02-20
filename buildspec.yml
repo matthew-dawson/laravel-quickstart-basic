@@ -6,9 +6,6 @@ env:
     DOCKERHUB_USERNAME: "/dockerhub/credentials:username"
   variables:
     IMAGE_TAG: "latest"
-    PROJECT_NAME: "laravel"
-    AWS_DEFAULT_REGION: "eu-west-2"
-    AWS_ACCOUNT_ID: "431414910073"
 phases:
   pre_build:
     commands:

@@ -5,3 +5,4 @@ codePipeline/create-role-policy.json
 tasks/app-task.json
 tasks/db-task.json
 tasks/webserver-task.json
+codeBuild/project.json
