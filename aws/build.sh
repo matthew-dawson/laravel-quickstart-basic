@@ -579,7 +579,7 @@ create_ecsServices () {
                 echo "DB_SERVICE_ID ${SERVICE_ID}" >> $DATAFILE
                 ;;
             webserver)
-                echo "WEBSERVER_SERVICE_ID ${SERVICE_ID}" >> $DATAFILE
+                echo "WEBSERVICE_SERVICE_ID ${SERVICE_ID}" >> $DATAFILE
                 ;;
         esac
 
@@ -660,6 +660,16 @@ create_codeDeployServiceRole () {
 
 }
 
+get_loadbalancer_public_DNS () {
+
+    local LOADBALANCER_DNS=$(aws elbv2 describe-load-balancers \
+        --load-balancer-arns $INTERNET_LOADBALANCER_ARN \
+        | grep DNSName \
+        | awk '{ print $2 }')
+
+    echo $LOADBALANCER_DNS
+}
+
 main () {
     init
     create_vpc
@@ -679,6 +689,7 @@ main () {
     # TODO create_codeDeployServiceRole
     # TODO Create Code Deploy build
 
+    echo "$(get_loadbalancer_public_DNS)"
     echo "--==SUCCESS==--"
 }
 

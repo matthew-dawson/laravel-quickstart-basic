@@ -32,11 +32,14 @@ delete_ecsServices () {
 
     ## TODO
     for i in {app,db,webserver}; do
-        delete-service \
+        aws ecs delete-service \
             --cluster "$(grep 'CLUSTERNAME' $DATAFILE \
             | awk '{ print $2 }')" \
-            --service "laravel-$i"-service \
+            --service "$i"-service \
             --force
+
+        ## Allow the service time to de-register
+        sleep 30
 
         local SERVICE=''
         case $i in
@@ -57,6 +60,7 @@ delete_ecsServices () {
             | awk '{ print $2 }')
 
         aws servicediscovery delete-service --id $SERVICE_DISCOVERY_SERVICE_ID
+
 
     done
 
@@ -312,7 +316,7 @@ main () {
     # TODO delete_codePipeline
     # TODO Delete Code Deploy Service Role
     # TODO Delete Code Deploy build
-    # TODO delete_ecsServices
+    delete_ecsServices
     delete_load_balancers
     delete_codePipelineServiceRole
     delete_codeBuild_project
