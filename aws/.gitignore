@@ -2,7 +2,7 @@
 codeBuild/laravel-project.json
 codePipeline/create-pipeline.json
 codePipeline/create-role-policy.json
-tasks/app-task.json
-tasks/db-task.json
-tasks/webserver-task.json
+ecs/tasks/app-task.json
+ecs/tasks/db-task.json
+ecs/tasks/webserver-task.json
 codeBuild/project.json

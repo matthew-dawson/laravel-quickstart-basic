@@ -2,17 +2,18 @@
 
 set -eux
 
+## TODO : Accept project name as an argument
 PROJECT="laravel"
 REGION="eu-west-2"
 DATAFILE="project.data"
-# AWS cli 2 introduces the default usage of a pager
+# AWS cli v2 introduces the default usage of a pager
 export AWS_PAGER=""
 
 init () {
 
     if [[ ! -e $DATAFILE ]]; then
         touch $DATAFILE
-        echo "$PROJECT" > $DATAFILE
+        echo "PROJECT $PROJECT" > $DATAFILE
     else
         echo "$DATAFILE EXISTS!"
         exit 255
@@ -20,14 +21,45 @@ init () {
 
     # Determine AWS account
     ACCOUNT=$(aws sts get-caller-identity \
-        | grep 'Account' | awk '{ print $2 }' \
-        | tr -d ',"')
+        | grep 'Account' \
+        | awk '{ print $3 }' \
+        | tr -d "'")
 
 }
 
 create_vpc () {
 
+    create_namespace () {
+        local OPERATIONID=''
+        local NAMESPACEID=''
+
+        OPERATIONID=$(aws servicediscovery create-private-dns-namespace \
+        --name local \
+        --vpc "$VPCID" \
+        | awk '{ print $3 }')
+
+        # Give the servicdiscovery service time to process
+        while [[ $(aws servicediscovery get-operation \
+            --operation-id "$OPERATIONID" \
+            | grep 'Status' \
+            | awk '{ print $2 }') = 'PENDING' ]]; do
+            sleep 15
+        done
+
+        local NAMESPACEID=$(aws servicediscovery get-operation \
+        --operation-id "$OPERATIONID" \
+        | grep 'NAMESPACE:' \
+        | awk '{ print $2 }')
+
+        echo $NAMESPACEID
+
+    }
+
     ## TODO: Improve this by utilising a query with tags
+    ## -- I've made the design decision to store state locally,
+    ## thus reducing the number of API calls being made to AWS.
+    ## Need to denote this design decision at the beginning of
+    ## this script.
     if [ $(grep 'VPCID' $DATAFILE) != '' ]; then
         echo 'VPC DATA EXISTS!!'
         exit 255
@@ -36,8 +68,7 @@ create_vpc () {
     # Create a VPC with a 10.0.0.0/16 CIDR block
     VPCID=$(aws ec2 create-vpc --cidr-block 10.0.0.0/16 \
         | grep 'VpcId' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
     echo "VPCID $VPCID" >> "$DATAFILE"
 
@@ -50,22 +81,7 @@ create_vpc () {
         --vpc-id "$VPCID"
 
     # Create .local private hosted zone using service discovery
-    OPERATIONID=$(aws servicediscovery create-private-dns-namespace \
-        --name local \
-        --vpc "$VPCID" \
-        | grep 'OperationId' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
-
-    # Give the servicdiscovery service time to process
-    sleep 30
-
-    NAMESPACEID=$(aws servicediscovery get-operation \
-        --operation-id "$OPERATIONID" \
-        | grep 'NAMESPACE":' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
-
+    NAMESPACEID=$(create_namespace)
     echo "NAMESPACEID $NAMESPACEID" >> "$DATAFILE"
 
     # Create a subnet with 10.0.0.0/24 CIDR block
@@ -74,8 +90,7 @@ create_vpc () {
         --vpc-id "$VPCID" \
         --cidr-block 10.0.0.0/24 \
         | grep 'SubnetId' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
     echo "SUBNETID0 $SUBNETID0" >> "$DATAFILE"
 
@@ -85,15 +100,13 @@ create_vpc () {
         --vpc-id "$VPCID" \
         --cidr-block 10.0.1.0/24 \
         | grep 'SubnetId' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
     echo "SUBNETID1 $SUBNETID1" >> "$DATAFILE"
 
     IGWID=$(aws ec2 create-internet-gateway \
         | grep 'InternetGatewayId' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
     echo "IGWID $IGWID" >> "$DATAFILE"
 
@@ -105,8 +118,7 @@ create_vpc () {
     # Create a route table for the VPC
     ROUTETABLEID=$(aws ec2 create-route-table --vpc-id "$VPCID" \
         | grep 'RouteTableId' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
     echo "ROUTETABLEID $ROUTETABLEID" >> "$DATAFILE"
 
@@ -150,12 +162,8 @@ create_ecrRepos () {
         --image-scanning-configuration scanOnPush=false \
         --region "$REGION" \
         | grep 'repositoryUri' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
-        ## Populating the *-task.json from the *-task.json.tmpl
-        sed "#image# s#: .*# :\"$REPOSITORYURI\",#" \
-            ecs/tasks/$i-task.json.yml > ecs/tasks/$i-task.json
     done
 
 }
@@ -184,13 +192,9 @@ create_efs () {
     FILESYSTEMID=$(aws efs create-file-system \
         --no-encrypted \
         --region "$REGION" \
-        | grep 'FileSystemId' | awk '{ print $2 }' \
-        | tr -d ',"')
+        | grep 'FileSystemId' | awk '{ print $2 }')
 
     echo "FILESYSTEMID $FILESYSTEMID" >> "$DATAFILE"
-
-    ## Update the task definition for the db to consume this EFS
-    sed -i "s/<FILESYSTEMID>/$FILESYSTEMID/g" ecs/tasks/db-task.json
 
     # Give it time to become available
     sleep 30
@@ -201,8 +205,7 @@ create_efs () {
         --subnet-id "$SUBNETID0" \
         --security-group "$SECURITYGROUPID" \
         --region "$REGION" \
-        | grep 'MountTargetId' | awk '{ print $2 }' \
-        | tr -d ',"')
+        | grep 'MountTargetId' | awk '{ print $2 }')
 
     echo "MOUNTTARGETID0 $MOUNTTARGETID0" >> "$DATAFILE"
 
@@ -211,8 +214,7 @@ create_efs () {
         --subnet-id "$SUBNETID1" \
         --security-group "$SECURITYGROUPID" \
         --region "$REGION" \
-        | grep 'MountTargetId' | awk '{ print $2 }' \
-        | tr -d ',"')
+        | grep 'MountTargetId' | awk '{ print $2 }')
 
     echo "MOUNTTARGETID1 $MOUNTTARGETID1" >> "$DATAFILE"
 
@@ -220,16 +222,11 @@ create_efs () {
 
 create_ecsCluster () {
 
-    if [ $(grep 'CLUSTER' $DATAFILE) != '' ]; then
-        echo 'CLUSTER DATA EXISTS!!'
-        exit 255
-    fi
-
     CLUSTERNAME="$PROJECT"-cluster
     echo "CLUSTERNAME $CLUSTERNAME" >> "$DATAFILE"
 
     CLUSTERARN=$(aws ecs create-cluster --cluster-name "$CLUSTERNAME" \
-        | grep 'clusterArn' | awk '{ print $2 }' | tr -d ',"')
+        | grep 'clusterArn' | awk '{ print $2 }')
 
     echo "CLUSTERARN $CLUSTERARN" >> "$DATAFILE"
 
@@ -238,18 +235,13 @@ create_ecsCluster () {
 create_ecsTaskExecutionRole () {
 
     local ROLENAME="ecsTaskExecutionRole"
-    local ROLEARN=''
-        ROLEARN=$(aws iam create-role \
+    ECS_TASK_ROLE_ARN=''
+        ECS_TASK_ROLE_ARN=$(aws iam create-role \
         --region "$REGION" \
         --role-name "$ROLENAME" \
         --assume-role-policy-document file://ecs/ecs-task-execution-assume-role.json \
         | grep 'Arn' \
-        | awk '{ print $2 }' \
-        | tr -d ',"' )
-
-    for i in {app,db,webserver}; do
-        sed -i "#executionRoleArn# s#: .*# :\"$ROLEARN\",#" ecs/tasks/$i-task.json
-     done
+        | awk '{ print $2 }')
 
     # Attach the role policy to the role
     aws iam attach-role-policy \
@@ -262,8 +254,22 @@ create_ecsTaskExecutionRole () {
 create_ecsTaskRegistrations () {
 
     for i in {app,db,webserver}; do
-        sed -i "s/<ACCOUNT>/$ACCOUNT/g" ecs/tasks/"$i"-task.json
-        sed -i "s/<PROJECT>/$PROJECT/g" ecs/tasks/"$i"-task.json
+        ## Populating the *-task.json from the *-task.json.tmpl
+        sed "s/<ACCOUNT>/${ACCOUNT}/g" ecs/tasks/"${i}"-task.json.tmpl \
+            > ecs/tasks/"${i}-task.json"
+
+        sed -i "s/<PROJECT>/${PROJECT}/g" ecs/tasks/"${i}"-task.json
+
+        sed -i "#image# s#: .*# :\"${REPOSITORYURI}\",#" \
+            ecs/tasks/$i-task.json
+
+        sed -i "#executionRoleArn# s#: .*# :\"${ECS_TASK_ROLE_ARN}\",#" \
+            ecs/tasks/$i-task.json
+
+        if [[ $i = 'db' ]]; then
+            ## Update the task definition for the db to consume this EFS
+            sed -i "s/<FILESYSTEMID>/${FILESYSTEMID}/g" ecs/tasks/db-task.json
+        fi
 
         # register the task definition
         aws ecs register-task-definition \
@@ -362,49 +368,146 @@ create_loadbalancer () {
     ## Listeners for the private load balancer endpoints (3306 and 9000) require
     ## private DNS resolution (app.local, db.local)
 
-    LOADBALANCERARN=$(aws elbv2 create-load-balancer \
-        --name "$PROJECT"-public-alb \
-        --scheme internet-facing \
-        --type application \
-        --subnets "$SUBNETID0" "$SUBNETID1" \
-        --security-groups "$SECURITYGROUPID" \
-        --ip-address-type ipv4 \
-        | grep 'LoadBalancerArn' | awk '{ print $2 }' \
-        | tr -d ',"')
+    create_load_balancer() {
+        if [[ $# -ne 1 ]]; then
+            echo "Must pass in internal/internet-facing"
+            exit 255
+        fi
 
-    echo "LOADBALANCERARN $LOADBALANCERARN" >> loadbalancer.data
+        local TYPE=''
+        local SCHEME=''
+        local LOADBALANCER_ARN=''
+        if [[ $1 == 'internal' ]]; then
+            SCHEME='internal'
+            TYPE='network'
 
-    TARGETGROUPARN=$(aws elbv2 create-target-group \
-        --name "$PROJECT"-tg \
-        --protocol HTTP \
-        --port 80 \
+            LOADBALANCER_ARN=$(aws elbv2 create-load-balancer \
+                --name "$PROJECT"-${TYPE}-alb \
+                --scheme $SCHEME \
+                --type $TYPE \
+                --subnet-mapping SubnetId="$SUBNETID0" SubnetId="$SUBNETID1" \
+                --ip-address-type ipv4 \
+                | grep 'LoadBalancerArn' | awk '{ print $2 }')
+
+        else
+            SCHEME='internet-facing'
+            TYPE='application'
+
+            LOADBALANCER_ARN=$(aws elbv2 create-load-balancer \
+                --name "$PROJECT"-${TYPE}-alb \
+                --scheme $SCHEME \
+                --type $TYPE \
+                --subnets "$SUBNETID0" "$SUBNETID1" \
+                --security-groups "$SECURITYGROUPID" \
+                --ip-address-type ipv4 \
+                | grep 'LoadBalancerArn' | awk '{ print $2 }')
+
+        fi
+
+        echo $LOADBALANCER_ARN
+    }
+
+    create_target_group () {
+        if [[ $# -ne 4 ]]; then
+            echo "Must pass in service, blue/green, protocol, and port"
+            exit 255
+        fi
+
+        local SERVICE=$1
+        local COLOR=$2
+        local PROTOCOL=$3
+        local PORT=$4
+
+        local TARGET_GROUP_ARN=$(aws elbv2 create-target-group \
+        --name "$PROJECT"-${SERVICE}-tg-${COLOR} \
+        --protocol $PROTOCOL \
+        --port $PORT \
         --vpc-id "$VPCID" \
-        --health-check-protocol HTTP \
-        --health-check-port 80 \
+        --health-check-protocol $PROTOCOL \
+        --health-check-port $PORT \
         --target-type ip \
         | grep 'TargetGroupArn' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
-    echo "TARGETGROUPARN $TARGETGROUPARN" >> loadbalancer.data
+        echo $TARGET_GROUP_ARN
 
-    LISTENERARN=$(aws elbv2 create-listener \
-        --load-balancer-arn "$LOADBALANCERARN" \
-        --protocol HTTP \
-        --port 80 \
-        --default-actions Type=forward,TargetGroupArn="$TARGETGROUPARN" \
+    }
+
+    create_listener () {
+
+        if [[ $# -ne 4 ]]; then
+            echo "Must pass in LOAD_BALANCER_ARN, TG_ARN, PROTOCOL, and PORT"
+        fi
+
+        local LOAD_BALANCER_ARN=$1
+        local TG_ARN=$2
+        local PROTOCOL=$3
+        local PORT=$4
+
+        local LISTENER_ARN=$(aws elbv2 create-listener \
+        --load-balancer-arn "$LOAD_BALANCER_ARN" \
+        --protocol $PROTOCOL \
+        --port $PORT \
+        --default-actions Type=forward,TargetGroupArn="$TG_ARN" \
         | grep 'ListenerArn' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
-    echo "LISTENERARN $LISTENERARN" >> loadbalancer.data
+        echo $LISTENER_ARN
+    }
+
+    INTERNET_LOADBALANCER_ARN=$(create_load_balancer 'internet')
+
+    echo "INTERNET_LOADBALANCER_ARN $INTERNET_LOADBALANCER_ARN" >> $DATAFILE
+
+    WEB_TARGETGROUP_BLUE_ARN=$(create_target_group 'web' 'blue' 'HTTP' 80)
+
+    echo "WEB_TARGETGROUP_BLUE_ARN $WEB_TARGETGROUP_BLUE_ARN" >> $DATAFILE
+
+    WEB_TARGETGROUP_GREEN_ARN=$(create_target_group 'web' 'green' 'HTTP' 80)
+
+    echo "WEB_TARGETGROUP_GREEN_ARN $WEB_TARGETGROUP_GREEN_ARN" >> $DATAFILE
+
+    WEB_LISTENER_ARN=$(create_listener "$INTERNET_LOADBALANCER_ARN" \
+        "$WEB_TARGETGROUP_BLUE_ARN" 'HTTP' 80)
+
+    echo "WEB_LISTENER_ARN $WEB_LISTENER_ARN" >> $DATAFILE
+
+    INTERNAL_LOADBALANCER_ARN=$(create_load_balancer 'internal')
+
+    echo "INTERNAL_LOADBALANCER_ARN $INTERNAL_LOADBALANCER_ARN" >> $DATAFILE
+
+    DB_TARGETGROUP_BLUE_ARN=$(create_target_group 'db' 'blue' 'TCP' 3306)
+
+    echo "DB_TARGETGROUP_BLUE_ARN $DB_TARGETGROUP_BLUE_ARN" >> $DATAFILE
+
+    DB_TARGETGROUP_GREEN_ARN=$(create_target_group 'db' 'green' 'TCP' 3306)
+
+    echo "DB_TARGETGROUP_GREEN_ARN $DB_TARGETGROUP_GREEN_ARN" >> $DATAFILE
+
+    DB_LISTENER_ARN=$(create_listener "$INTERNAL_LOADBALANCER_ARN" \
+        "$DB_TARGETGROUP_BLUE_ARN" 'TCP' 3306)
+
+    echo "DB_LISTENER_ARN $DB_LISTENER_ARN" >> $DATAFILE
+
+    APP_TARGETGROUP_BLUE_ARN=$(create_target_group 'app' 'blue' 'TCP' 9000)
+
+    echo "APP_TARGETGROUP_BLUE_ARN $APP_TARGETGROUP_BLUE_ARN" >> $DATAFILE
+
+    APP_TARGETGROUP_GREEN_ARN=$(create_target_group 'app' 'green' 'TCP' 9000)
+
+    echo "APP_TARGETGROUP_GREEN_ARN $APP_TARGETGROUP_GREEN_ARN" >> $DATAFILE
+
+    APP_LISTENER_ARN=$(create_listener "$INTERNAL_LOADBALANCER_ARN" \
+        "$APP_TARGETGROUP_BLUE_ARN" 'TCP' 9000)
+
+    echo "APP_LISTENER_ARN $APP_LISTENER_ARN" >> $DATAFILE
 
 }
 
 create_ecsServices () {
 
     REGISTRYARN=$(aws servicediscovery list-namespaces \
-        | grep 'Arn' | awk '{ print $2 }' | tr -d ',"')
+        | grep 'Arn' | awk '{ print $3 }')
 
     for i in {app,db,webserver}; do
         sed "s/<FAMILY>/$PROJECT-$i/" services/create-"$i"-service.json.tmpl \
@@ -446,8 +549,7 @@ create_codePipeline () {
     CONNECTIONARN=$(aws codestar-connections \
         list-connections \
         | grep 'ConnectionArn' \
-        | awk '{ print $2 }' \
-        | tr -d ',"')
+        | awk '{ print $2 }')
 
     sed -i "s#<CONNECTIONARN>#$CONNECTIONARN#g" codePipeline/create-pipeline.json
 
@@ -468,7 +570,6 @@ create_codeDeployServiceRole () {
 }
 
 main () {
-    ## TODO Populate docker credentials
     init
     create_vpc
     create_ecrRepos
@@ -482,9 +583,9 @@ main () {
     create_codeBuildProject
     create_codePipelineServiceRole
     create_loadbalancer
-    create_ecsServices
-    create_codePipeline
-#    create_codeDeployServiceRole
+    # TODO create_ecsServices
+    # TODO create_codePipeline
+    # TODO create_codeDeployServiceRole
     # TODO Create Code Deploy build
 
     echo "--==SUCCESS==--"
