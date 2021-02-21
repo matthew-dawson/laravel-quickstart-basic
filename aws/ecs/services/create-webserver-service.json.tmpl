@@ -1,45 +1,39 @@
 {
-    "taskDefinition": "<FAMILY>",
     "cluster": "<CLUSTERNAME>",
+    "serviceName": "<SERVICENAME>",
+    "taskDefinition": "<TASKDEFINITION>",
     "loadBalancers": [
         {
-            "targetGroupArn": "<TARGETGROUPARN0>",
-            "loadBalancerName": "<PROJECT>-webserver-alb",
-            "containerName": "<CONTAINERNAME>",
-            "containerPort": 80
-        },
-        {
-            "targetGroupArn": "<TARGETGROUPARN1>",
-            "loadBalancerName": "<PROJECT>-webserver-alb",
+            "targetGroupArn": "<TARGETGROUPARN>",
             "containerName": "<CONTAINERNAME>",
             "containerPort": 80
         }
     ],
     "serviceRegistries": [
         {
-            "registryArn": "<REGISTRYARN>",
+            "registryArn": "<REGISTRY_ARN>",
             "port": 80,
             "containerName": "webserver",
             "containerPort": 80
         }
     ],
-    "desiredCount": 1,
     "launchType": "FARGATE",
-    "platformVersion": "1.4.0",
     "schedulingStrategy": "REPLICA",
     "deploymentController": {
         "type": "CODE_DEPLOY"
     },
+    "platformVersion": "1.4.0",
     "networkConfiguration": {
         "awsvpcConfiguration": {
-            "subnets": [
-                "<SUBNETID0>",
-                "<SUBNETID1>"
-            ],
+            "assignPublicIp": "ENABLED",
             "securityGroups": [
                 "<SECURITYGROUPID>"
             ],
-            "assignPublicIp": "ENABLED"
-        }
-    }
+            "subnets": [
+                "<SUBNETID0>",
+                "<SUBNETID1>"
+            ]
+      }
+    },
+    "desiredCount": 1
 }

@@ -1,5 +1,7 @@
 #! /bin/bash
 
+## TODO Explain this project
+
 set -eux
 
 ## TODO : Accept project name as an argument
@@ -157,13 +159,27 @@ create_vpc () {
 create_ecrRepos () {
 
     for i in {app,db,webserver}; do
-        REPOSITORYURI=$(aws ecr create-repository \
+        local REPOSITORYURI=$(aws ecr create-repository \
         --repository-name "$PROJECT/$i" \
         --image-scanning-configuration scanOnPush=false \
         --region "$REGION" \
         | grep 'repositoryUri' \
         | awk '{ print $2 }')
 
+        local SERVICE=''
+        case $i in
+            app)
+                SERVICE='APP'
+                ;;
+            db)
+                SERVICE='DB'
+                ;;
+            webserver)
+                SERVICE='WEBSERVER'
+                ;;
+        esac
+
+        echo "${SERVICE}_REPOSITORY_URI $REPOSITORYURI" >> $DATAFILE
     done
 
 }
@@ -239,7 +255,8 @@ create_ecsTaskExecutionRole () {
         ECS_TASK_ROLE_ARN=$(aws iam create-role \
         --region "$REGION" \
         --role-name "$ROLENAME" \
-        --assume-role-policy-document file://ecs/ecs-task-execution-assume-role.json \
+        --assume-role-policy-document \
+        file://ecs/ecs-task-execution-assume-role.json \
         | grep 'Arn' \
         | awk '{ print $2 }')
 
@@ -255,12 +272,28 @@ create_ecsTaskRegistrations () {
 
     for i in {app,db,webserver}; do
         ## Populating the *-task.json from the *-task.json.tmpl
-        sed "s/<ACCOUNT>/${ACCOUNT}/g" ecs/tasks/"${i}"-task.json.tmpl \
-            > ecs/tasks/"${i}-task.json"
+        sed "s/<ACCOUNT>/${ACCOUNT}/g" ecs/tasks/"$i"-task.json.tmpl \
+            > ecs/tasks/"$i-task.json"
 
-        sed -i "s/<PROJECT>/${PROJECT}/g" ecs/tasks/"${i}"-task.json
+        sed -i "s/<PROJECT>/${PROJECT}/g" ecs/tasks/"$i"-task.json
 
-        sed -i "#image# s#: .*# :\"${REPOSITORYURI}\",#" \
+        local SERVICE=''
+        case $i in
+            app)
+                SERVICE='APP'
+                ;;
+            db)
+                SERVICE='DB'
+                ;;
+            webserver)
+                SERVICE='WEBSERVER'
+        esac
+
+        local REPOSITORY_URI=''
+        REPOSITORY_URI=$(grep "${SERVICE}_REPOSITORY_URI" $DATAFILE \
+            | awk '{ print $2 }')
+
+        sed -i "s#<REPOSITORY_URI>#${REPOSITORY_URI}#" \
             ecs/tasks/$i-task.json
 
         sed -i "#executionRoleArn# s#: .*# :\"${ECS_TASK_ROLE_ARN}\",#" \
@@ -268,7 +301,8 @@ create_ecsTaskRegistrations () {
 
         if [[ $i = 'db' ]]; then
             ## Update the task definition for the db to consume this EFS
-            sed -i "s/<FILESYSTEMID>/${FILESYSTEMID}/g" ecs/tasks/db-task.json
+            sed -i "s/<FILESYSTEMID>/${FILESYSTEMID}/g" \
+                ecs/tasks/db-task.json
         fi
 
         # register the task definition
@@ -313,11 +347,11 @@ create_codeBuildServiceRole () {
 create_codeBuildProject () {
 
     ## Populate the project.json from the project.json.tmpl
-    sed "s/<PROJECT>/$PROJECT/g" codeBuild/project.json.tmpl \
+    sed "s/<PROJECT>/${PROJECT}/g" codeBuild/project.json.tmpl \
         > codeBuild/project.json
 
-    sed -i "s/<REGION>/$REGION/g" codeBuild/project.json
-    sed -i "s/<ACCOUNT>/$ACCOUNT/g" codeBuild/project.json
+    sed -i "s/<REGION>/${REGION}/g" codeBuild/project.json
+    sed -i "s/<ACCOUNT>/${ACCOUNT}/g" codeBuild/project.json
 
     aws codebuild create-project \
         --cli-input-json file://codeBuild/project.json
@@ -332,11 +366,11 @@ create_codeBuildProject () {
 create_codePipelineServiceRole () {
 
     ## Populate the .json from the .json.tmpl
-    sed "s/<ACCOUNT>/$ACCOUNT/g" \
+    sed "s/<ACCOUNT>/${ACCOUNT}/g" \
         codePipeline/create-role-policy.json.tmpl \
         > codePipeline/create-role-policy.json
 
-    sed -i "s/<PROJECT>/$PROJECT/g" \
+    sed -i "s/<PROJECT>/${PROJECT}/g" \
         codePipeline/create-role-policy.json
 
     aws iam create-role \
@@ -355,18 +389,20 @@ create_codePipelineServiceRole () {
 
 }
 
-create_loadbalancer () {
+create_loadbalancers () {
 
-    ## Need two load balancers, public and private facing
-    ## Public facing load balancer resolves traffic on port 80 to the webserver
-    ## Private facing load balancer resolves traffic on port 3306 to the mysqldb
-    ## and traffic on 9000 to the php app server.
+    ## Need two load balancers, one internal and one internet facing.
+    ## Public facing load balancer resolves traffic on port 80 to the
+    ## webserver.
+    ## Private facing load balancer resolves traffic on port 3306 to the
+    ## mysqldb and traffic on 9000 to the php app server.
 
-    ## Requires two target groups for each of the services {app,db,webservice} in
-    ## order to facilitate the code deploy deployments for each component.\
+    ## Requires two target groups for each of the services
+    ## {app,db,webservice} in order to facilitate the code deploy
+    ## deployments for each component.\
 
-    ## Listeners for the private load balancer endpoints (3306 and 9000) require
-    ## private DNS resolution (app.local, db.local)
+    ## Listeners for the private load balancer endpoints (3306 and 9000)
+    ## require private DNS resolution (app.local, db.local)
 
     create_load_balancer() {
         if [[ $# -ne 1 ]]; then
@@ -506,33 +542,88 @@ create_loadbalancer () {
 
 create_ecsServices () {
 
-    REGISTRYARN=$(aws servicediscovery list-namespaces \
-        | grep 'Arn' | awk '{ print $3 }')
-
     for i in {app,db,webserver}; do
-        sed "s/<FAMILY>/$PROJECT-$i/" services/create-"$i"-service.json.tmpl \
-            > services/create-"$i"-service.json
-        sed -i "s/<CLUSTERNAME>/$CLUSTERNAME/" services/create-"$i"-service.json
-        sed -i "s#<REGISTRYARN>#$REGISTRYARN#" services/create-"$i"-service.json
-    done
+        local TASKDEFINITION=$(aws ecs list-task-definitions \
+            --family-prefix laravel-$i \
+            --status ACTIVE \
+            --sort DESC \
+            --max-items 1 \
+            | grep 'arn' \
+            | awk -F '/' '{ print $2 }')
 
-    sed -i "s#<TARGETGROUPARN>#$TARGETGROUPARN#" \
-        services/create-webserver-service.json
-    sed -i "s/<CONTAINERNAME>/$PROJECT-webserver/" \
-        services/create-webserver-service.json
-    sed -i "s/<SUBNETID0>/$SUBNETID0/" \
-        services/create-webserver-service.json
-    sed -i "s/<SUBNETID1>/$SUBNETID1/" \
-        services/create-webserver-service.json
-    sed -i "s/<SECURITYGROUPID>/$SECURITYGROUPID/" \
-        services/create-webserver-service.json
+        sed "s/<TASKDEFINITION>/$TASKDEFINITION/" \
+            ecs/services/create-"$i"-service.json.tmpl \
+            > ecs/services/create-"$i"-service.json
 
-    for i in {app,db,webserver}; do
+        sed -i "s/<CLUSTERNAME>/$CLUSTERNAME/" \
+            ecs/services/create-"$i"-service.json
+
+        local SERVICENAME="${PROJECT}-${i}-service"
+        sed -i "s/<SERVICENAME>/$SERVICENAME/" \
+            ecs/services/create-"$i"-service.json
+
+        # TODO
+        # WIP
+        local SERVICE_ID=$(aws servicediscovery \
+            create-service --name $i \
+            --dns-config NamespaceId="${NAMESPACEID}",DnsRecords='[{Type="A",TTL="60"}]' \
+            --health-check-custom-config FailureThreshold=1 --region $REGION \
+            | grep ' Id:' \
+            | awk '{print $2 }')
+
+        case $i in
+            app)
+                echo "APP_SERVICE_ID ${SERVICE_ID}" >> $DATAFILE
+                ;;
+            db)
+                echo "DB_SERVICE_ID ${SERVICE_ID}" >> $DATAFILE
+                ;;
+            webserver)
+                echo "WEBSERVER_SERVICE_ID ${SERVICE_ID}" >> $DATAFILE
+                ;;
+        esac
+
+        local REGISTRY_ARN=$(aws servicediscovery \
+            get-service --id $SERVICE_ID \
+            | grep 'Arn' \
+            | awk '{ print $2 }')
+
+
+        sed -i "s#<REGISTRY_ARN>#${REGISTRY_ARN}#" \
+            ecs/services/create-"$i"-service.json
+
+        local TARGETGROUPARN=''
+        case $i in
+            app)
+                TARGETGROUPARN=$APP_TARGETGROUP_BLUE_ARN
+                ;;
+            db)
+                TARGETGROUPARN=$DB_TARGETGROUP_BLUE_ARN
+                ;;
+            webserver)
+                TARGETGROUPARN=$WEB_TARGETGROUP_BLUE_ARN
+                ;;
+        esac
+
+        sed -i "s#<TARGETGROUPARN>#$TARGETGROUPARN#" \
+            ecs/services/create-"$i"-service.json
+
+        sed -i "s/<CONTAINERNAME>/${PROJECT}-${i}/" \
+            ecs/services/create-"$i"-service.json
+        sed -i "s/<SECURITYGROUPID>/$SECURITYGROUPID/" \
+            ecs/services/create-"$i"-service.json
+        sed -i "s/<SUBNETID0>/$SUBNETID0/" \
+            ecs/services/create-"$i"-service.json
+        sed -i "s/<SUBNETID1>/$SUBNETID1/" \
+            ecs/services/create-"$i"-service.json
+
         aws ecs create-service \
             --service-name "$i"-service \
-            --cli-input-json file://services/create-"$i"-service.json
+            --cli-input-json file://ecs/services/create-"$i"-service.json
+
     done
 
+    # Give the services time to fully register
     sleep 20
 }
 
@@ -582,8 +673,8 @@ main () {
     create_codeBuildServiceRole
     create_codeBuildProject
     create_codePipelineServiceRole
-    create_loadbalancer
-    # TODO create_ecsServices
+    create_loadbalancers
+    create_ecsServices
     # TODO create_codePipeline
     # TODO create_codeDeployServiceRole
     # TODO Create Code Deploy build

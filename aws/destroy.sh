@@ -33,8 +33,31 @@ delete_ecsServices () {
     ## TODO
     for i in {app,db,webserver}; do
         delete-service \
-        --service "$i"-service \
-        --force
+            --cluster "$(grep 'CLUSTERNAME' $DATAFILE \
+            | awk '{ print $2 }')" \
+            --service "laravel-$i"-service \
+            --force
+
+        local SERVICE=''
+        case $i in
+            app)
+                SERVICE='APP'
+                ;;
+            db)
+                SERVICE='DB'
+                ;;
+            webservice)
+                SERVICE='WEBSERVICE'
+                ;;
+        esac
+
+        ## Delete the nameservice service_id from the servicediscovery service
+        local SERVICE_DISCOVERY_SERVICE_ID=$(grep "$SERVICE"_SERVICE_ID \
+            $DATAFILE \
+            | awk '{ print $2 }')
+
+        aws servicediscovery delete-service --id $SERVICE_DISCOVERY_SERVICE_ID
+
     done
 
 }
@@ -127,7 +150,7 @@ delete_codeBuildServiceRole () {
 
 delete_coddebuild_project () {
 
-    aws codebuild delete-project --name ${PROJECT}
+    aws codebuild delete-project --name $PROJECT
 
 }
 
@@ -137,7 +160,7 @@ deregister_task_definitions () {
     local TASK_DEF_ARN=''
     for i in {app,db,webserver}; do
         for TASK_DEF_ARN in $(aws ecs list-task-definitions \
-            --family-prefix ${PROJECT}-${i} \
+            --family-prefix $PROJECT-$i \
             --status ACTIVE \
             | grep 'arn' \
             | awk '{ print $2 }'); do
@@ -254,7 +277,8 @@ delete_vpc () {
     aws ec2 delete-route-table --route-table-id "$ROUTETABLEID"
 
     # Detach the IGW from the VPC
-    aws ec2 detach-internet-gateway --internet-gateway-id "$IGWID" --vpc-id "$VPCID"
+    aws ec2 detach-internet-gateway --internet-gateway-id "$IGWID" \
+        --vpc-id "$VPCID"
 
     # Delete the IGW
     aws ec2 delete-internet-gateway --internet-gateway-id "$IGWID"

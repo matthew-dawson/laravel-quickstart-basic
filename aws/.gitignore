@@ -6,3 +6,6 @@ ecs/tasks/app-task.json
 ecs/tasks/db-task.json
 ecs/tasks/webserver-task.json
 codeBuild/project.json
+ecs/services/create-app-service.json
+ecs/services/create-db-service.json
+ecs/services/create-webserver-service.json
